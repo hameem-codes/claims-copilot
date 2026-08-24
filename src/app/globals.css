@@ -1,26 +1,459 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Insurance Claims AI Copilot — Playful Geometric Design System
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colors */
+  --bg: #FFFDF5;
+  --fg: #1E293B;
+  --muted: #F1F5F9;
+  --muted-fg: #64748B;
+  --accent: #8B5CF6;
+  --accent-fg: #FFFFFF;
+  --secondary: #F472B6;
+  --tertiary: #FBBF24;
+  --quaternary: #34D399;
+  --border: #E2E8F0;
+  --input: #FFFFFF;
+  --card: #FFFFFF;
+  --ring: #8B5CF6;
+
+  /* Semantic colors */
+  --success: #34D399;
+  --warning: #FBBF24;
+  --error: #EF4444;
+  --info: #8B5CF6;
+
+  /* Shadows */
+  --shadow-sm: 3px 3px 0 #1E293B;
+  --shadow-md: 4px 4px 0 #1E293B;
+  --shadow-lg: 6px 6px 0 #1E293B;
+  --shadow-xl: 8px 8px 0 #1E293B;
+  --shadow-accent: 4px 4px 0 #8B5CF6;
+  --shadow-pink: 8px 8px 0 #F472B6;
+  --shadow-muted: 4px 4px 0 #E2E8F0;
+
+  /* Typography */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 9999px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-fg);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-fg);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --color-quaternary: var(--quaternary);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================================
+   Base Styles
+   ============================================================ */
+
+html {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--accent);
+  color: white;
+}
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-fg);
+}
+
+/* ============================================================
+   Typography Helpers
+   ============================================================ */
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.text-editorial {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.text-overline {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-fg);
+}
+
+/* ============================================================
+   Card System
+   ============================================================ */
+
+.card {
+  background: var(--card);
+  border: 2px solid var(--fg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translate(-1px, -1px);
+}
+
+.card-accent {
+  box-shadow: var(--shadow-accent);
+}
+
+.card-pink {
+  box-shadow: var(--shadow-pink);
+}
+
+/* ============================================================
+   Button System — Candy Buttons
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 2px solid var(--fg);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--fg);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  white-space: nowrap;
+  min-height: 40px;
+}
+
+.btn:hover {
+  box-shadow: var(--shadow-md);
+  transform: translate(-1px, -1px);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--fg);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border-color: #6D28D9;
+  box-shadow: 3px 3px 0 #6D28D9;
+}
+
+.btn-primary:hover {
+  box-shadow: 4px 4px 0 #6D28D9;
+}
+
+.btn-primary:active {
+  box-shadow: 1px 1px 0 #6D28D9;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  min-height: 32px;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.75rem;
+  font-size: 1rem;
+  min-height: 48px;
+}
+
+/* ============================================================
+   Pill / Tag System
+   ============================================================ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--fg);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.pill-accent {
+  background: var(--accent);
+  color: white;
+  border-color: #6D28D9;
+}
+
+.pill-success {
+  background: var(--quaternary);
+  color: #065F46;
+  border-color: #065F46;
+}
+
+.pill-warning {
+  background: var(--tertiary);
+  color: #92400E;
+  border-color: #92400E;
+}
+
+.pill-error {
+  background: var(--error);
+  color: white;
+  border-color: #B91C1C;
+}
+
+.pill-muted {
+  background: var(--muted);
+  color: var(--muted-fg);
+  border-color: var(--border);
+}
+
+/* ============================================================
+   Status LED
+   ============================================================ */
+
+.status-led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--fg);
+}
+
+.status-led-green {
+  background: var(--quaternary);
+}
+
+.status-led-yellow {
+  background: var(--tertiary);
+}
+
+.status-led-red {
+  background: var(--error);
+}
+
+.status-led-purple {
+  background: var(--accent);
+}
+
+/* ============================================================
+   Geometric Decorations
+   ============================================================ */
+
+.geo-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.geo-dot-grid {
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 12px 12px;
+  pointer-events: none;
+}
+
+.geo-stripe {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    var(--border) 4px,
+    var(--border) 5px
+  );
+  pointer-events: none;
+}
+
+/* ============================================================
+   Tool Execution Animation
+   ============================================================ */
+
+@keyframes tool-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.tool-loading {
+  animation: tool-pulse 1s ease-in-out infinite;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ============================================================
+   Message Content Styling
+   ============================================================ */
+
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  margin-top: 0.75em;
+  margin-bottom: 0.5em;
+}
+
+.message-content strong {
+  font-weight: 600;
+}
+
+.message-content ul,
+.message-content ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.message-content li {
+  margin: 0.25em 0;
+}
+
+.message-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75em 0;
+  font-size: 0.85em;
+}
+
+.message-content th,
+.message-content td {
+  padding: 0.4em 0.75em;
+  border: 1.5px solid var(--fg);
+  text-align: left;
+}
+
+.message-content th {
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.message-content hr {
+  border: none;
+  border-top: 1.5px solid var(--border);
+  margin: 0.75em 0;
+}
+
+.message-content code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--muted);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+}
+
+.message-content p {
+  margin: 0.5em 0;
+}
+
+.message-content p:first-child {
+  margin-top: 0;
+}
+
+/* ============================================================
+   Reduced Motion
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
