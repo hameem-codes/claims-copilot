@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
 
-// Load environment variables from the root .env.local using native Node 20+ feature
-process.loadEnvFile(path.resolve(__dirname, "../../.env.local"));
+// Load environment variables from the .env.local file in the insurance-copilot folder
+process.loadEnvFile(path.resolve(__dirname, "../.env.local"));
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

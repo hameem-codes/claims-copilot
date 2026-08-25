@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { embedText } from "@/lib/rag/embed";
 import Tesseract from "tesseract.js";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // Note: Next.js API route configuration
 export const maxDuration = 300; // 5 minutes (max for Vercel Pro, ignored on standard free tier but good practice for OCR)
@@ -60,7 +59,13 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    const { data: { user } } = await authClient.auth.getUser();
+    console.log("--- AUTH DEBUG ---");
+    console.log("Raw Cookies:", cookieStore.getAll());
+    const authResult = await authClient.auth.getUser();
+    console.log("getUser() result:", JSON.stringify(authResult, null, 2));
+    console.log("------------------");
+
+    const { data: { user } } = authResult;
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -105,32 +110,10 @@ export async function POST(req: NextRequest) {
     let extractedText = "";
 
     if (file.type === "application/pdf") {
-      // Dynamic import of canvas for server-side PDF rendering
-      const canvasMod = await import("canvas");
-      
-      const uint8Array = new Uint8Array(fileBuffer);
-      const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
-      const numPages = pdf.numPages;
-
-      for (let i = 1; i <= numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2.0 }); // Scale up for better OCR accuracy
-        
-        const canvas = canvasMod.createCanvas(viewport.width, viewport.height);
-        const canvasContext = canvas.getContext("2d");
-        
-        const renderContext = {
-          canvasContext: canvasContext as any,
-          canvas: canvas as any,
-          viewport: viewport,
-        };
-
-        await page.render(renderContext).promise;
-        const imageBuffer = canvas.toBuffer("image/png");
-        
-        const { data: { text } } = await Tesseract.recognize(imageBuffer, "eng");
-        extractedText += text + "\n";
-      }
+      const pdfParseMod = await import("pdf-parse");
+      const pdfParse = (pdfParseMod as any).default || pdfParseMod;
+      const parsed = await pdfParse(Buffer.from(fileBuffer));
+      extractedText = parsed.text;
     } else {
       // Direct image OCR for PNG/JPEG
       const { data: { text } } = await Tesseract.recognize(Buffer.from(fileBuffer), "eng");
