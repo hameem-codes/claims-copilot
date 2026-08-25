@@ -112,6 +112,27 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
         />
 
+        {/* Evidence Confidence & Sources */}
+        {!isUser && message.confidence && (
+          <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                message.confidence === "high" ? "bg-green-500" :
+                message.confidence === "medium" ? "bg-yellow-500" :
+                "bg-red-500"
+              }`} />
+              <span className="font-mono uppercase text-[0.65rem] tracking-wider text-muted-foreground">
+                {message.confidence} Confidence
+              </span>
+            </div>
+            {message.sources && message.sources.length > 0 && (
+              <div className="text-[0.65rem] font-mono text-muted-foreground truncate max-w-[150px]">
+                {message.sources.length} source(s)
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Timestamp */}
         <div className={`mt-2 text-[0.6rem] font-mono ${isUser ? "text-white/60" : "text-muted-foreground"}`}>
           {displayTime}

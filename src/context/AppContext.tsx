@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
 import type {
   Customer,
   Conversation,
@@ -17,7 +18,6 @@ import {
   getInsightsForCustomer,
   claims as allClaims,
 } from "@/data/mock-data";
-import { processMessage } from "@/lib/mock-ai";
 
 // ============================================================
 // Application State Context
@@ -66,18 +66,28 @@ export function useApp() {
   return ctx;
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children, user }: { children: ReactNode; user?: User | null }) {
+  const initialCustomer: Customer = user ? {
+    id: user.id,
+    name: user.email?.split("@")[0] || "User",
+    email: user.email || "",
+    phone: "",
+    customerSince: new Date().getFullYear().toString(),
+    preferredContact: "email",
+    avatarColor: "bg-blue-500",
+  } : mockCustomers[0];
+
   const [view, setView] = useState<AppView>("copilot");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [currentCustomer, setCurrentCustomer] = useState<Customer>(mockCustomers[0]);
+  const [currentCustomer, setCurrentCustomer] = useState<Customer>(initialCustomer);
   const [conversations, setConversations] = useState<Conversation[]>(defaultConversations);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(defaultConversations[0]);
   const [memories] = useState<MemoryEntry[]>(defaultMemories);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeClaimId, setActiveClaimId] = useState<string | null>("CLM-20481");
+  const [activeClaimId, setActiveClaimId] = useState<string | null>(user ? null : "CLM-20481");
   const [claimViewMode, setClaimViewMode] = useState<ClaimViewMode>("list");
-  const [insights, setInsights] = useState<AIInsight[]>(getInsightsForCustomer("cust-001"));
+  const [insights, setInsights] = useState<AIInsight[]>(getInsightsForCustomer(initialCustomer.id));
 
   const conversationsRef = useRef(conversations);
   conversationsRef.current = conversations;
@@ -156,20 +166,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setIsProcessing(true);
     try {
-      const response = await processMessage(content, currentCustomer.id, updatedMessages);
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: updatedMessages,
+          activeClaimId,
+          activePolicyId: undefined, // Add if you start tracking activePolicyId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("API response error");
+      }
+
+      const responseData = await response.json();
+      if (responseData.error) {
+        throw new Error(responseData.error);
+      }
 
       const finalConv = {
         ...updatedConv,
-        messages: [...updatedMessages, response],
+        messages: [...updatedMessages, responseData],
         updatedAt: new Date().toISOString(),
-        activeClaimId: response.referencedClaimId || updatedConv.activeClaimId,
-        activePolicyId: response.referencedPolicyId || updatedConv.activePolicyId,
+        activeClaimId: responseData.referencedClaimId || updatedConv.activeClaimId,
+        activePolicyId: responseData.referencedPolicyId || updatedConv.activePolicyId,
       };
       setCurrentConversation(finalConv);
       setConversations((prev) => prev.map((c) => (c.id === finalConv.id ? finalConv : c)));
 
-      if (response.referencedClaimId) {
-        setActiveClaimId(response.referencedClaimId);
+      if (responseData.referencedClaimId) {
+        setActiveClaimId(responseData.referencedClaimId);
       }
     } catch {
       const errorMessage: ConversationMessage = {
