@@ -87,7 +87,7 @@ Document Context:
 ${contextText}`;
 
       const { object } = await generateObject({
-        model: groq("llama3-8b-8192"),
+        model: groq("groq/compound"),
         schema,
         system: systemPrompt,
         messages: [{ role: "user", content: `Extract the ${documentType} facts from the provided text.` }],

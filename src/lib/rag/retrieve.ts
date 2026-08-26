@@ -83,33 +83,50 @@ export async function retrieveChunks(
     }
   }
 
-  // 4. Optionally fetch filenames
+  // 4. Optionally fetch filenames and document types
   // To avoid an N+1 query, we can fetch distinct document IDs and then query the filenames
   const documentIds = Array.from(new Set(chunks.map((c: { document_id: string }) => c.document_id)));
   
   const { data: docsData } = await supabase
     .from("documents")
-    .select("id, original_filename")
+    .select("id, original_filename, document_type")
     .in("id", documentIds);
 
   const filenameMap = new Map<string, string>();
+  const docTypeMap = new Map<string, "policy" | "claim">();
+  
   if (docsData) {
-    (docsData as Array<{ id: string; original_filename?: string | null }>).forEach((d) => {
+    (docsData as Array<{ id: string; original_filename?: string | null; document_type?: string | null }>).forEach((d) => {
       if (d.original_filename) {
         filenameMap.set(d.id, d.original_filename);
+      }
+      if (d.document_type === "policy" || d.document_type === "claim") {
+        docTypeMap.set(d.id, d.document_type);
       }
     });
   }
 
   // 5. Construct normalized sources
-  const sources: RetrievedSource[] = chunks.map((c: { chunk_id: string; document_id: string; chunk_index: number; content: string; similarity: number }) => ({
-    chunkId: c.chunk_id,
-    documentId: c.document_id,
-    chunkIndex: c.chunk_index,
-    content: c.content,
-    similarity: c.similarity,
-    filename: filenameMap.get(c.document_id),
-  }));
+  const sources: RetrievedSource[] = chunks.map((c: { chunk_id: string; document_id: string; chunk_index: number; content: string; similarity: number }) => {
+    // Attempt to parse page number if chunks contain "[Page X]"
+    let pageNumber = undefined;
+    const pageMatch = c.content.match(/\[Page (\d+)\]/i);
+    if (pageMatch) {
+      pageNumber = parseInt(pageMatch[1], 10);
+    }
+    
+    return {
+      chunkId: c.chunk_id,
+      documentId: c.document_id,
+      documentType: docTypeMap.get(c.document_id),
+      documentName: filenameMap.get(c.document_id),
+      chunkIndex: c.chunk_index,
+      content: c.content,
+      similarity: c.similarity,
+      filename: filenameMap.get(c.document_id),
+      pageNumber,
+    };
+  });
 
   // 6. Determine confidence based on top similarity
   const topSimilarity = sources[0].similarity;

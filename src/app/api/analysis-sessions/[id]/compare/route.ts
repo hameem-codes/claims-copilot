@@ -112,7 +112,7 @@ ${claimChunks}
 `;
 
     const { object: comparisonResult } = await generateObject({
-      model: groq("llama3-8b-8192"),
+      model: groq("groq/compound"),
       schema: ComparisonSchema,
       system: systemPrompt,
       messages: [{ role: "user", content: "Compare the policy and claim to assess coverage." }],

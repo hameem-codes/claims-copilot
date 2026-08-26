@@ -113,7 +113,7 @@ ${claimChunks}
 `;
 
     const { object: discrepancyResult } = await generateObject({
-      model: groq("llama3-8b-8192"),
+      model: groq("groq/compound"),
       schema: DiscrepancySchema,
       system: systemPrompt,
       messages: [{ role: "user", content: "Detect discrepancies between the policy and claim." }],

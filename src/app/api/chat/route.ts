@@ -3,6 +3,7 @@ import { retrieveChunks } from "@/lib/rag/retrieve";
 import { generateText } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { createClient } from "@/lib/supabase/server";
+import { RetrievedSource } from "@/types";
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Validate incoming message
     const body = await req.json();
-    const { messages, activeClaimId, activePolicyId } = body;
+    const { messages, activeClaimId, activePolicyId, analysisSessionId } = body;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "Invalid messages array" }, { status: 400 });
@@ -35,27 +36,65 @@ export async function POST(req: NextRequest) {
 
     const question = lastMessage.content;
 
+    let targetPolicyDocId: string | null = null;
+    let targetClaimDocId: string | null = null;
+
+    // 2b. If analysisSessionId is provided, prioritize it and fetch its specific documents
+    if (analysisSessionId) {
+      const { data: session } = await supabase
+        .from("analysis_sessions")
+        .select("policy_document_id, claim_document_id")
+        .eq("id", analysisSessionId)
+        .single<{ policy_document_id: string; claim_document_id: string }>();
+        
+      if (session) {
+        targetPolicyDocId = session.policy_document_id;
+        targetClaimDocId = session.claim_document_id;
+      }
+    }
+
     // 3. Retrieve relevant chunks
-    let retrievalResult;
+    let allSources: RetrievedSource[] = [];
+    
     try {
-      retrievalResult = await retrieveChunks(question, {
-        topK: 5,
-        claimId: activeClaimId,
-        policyId: activePolicyId,
-      });
+      if (analysisSessionId && (targetPolicyDocId || targetClaimDocId)) {
+        // Search specifically in the session's documents
+        if (targetPolicyDocId) {
+          const res = await retrieveChunks(question, { topK: 3, documentId: targetPolicyDocId });
+          allSources.push(...res.sources);
+        }
+        if (targetClaimDocId) {
+          const res = await retrieveChunks(question, { topK: 3, documentId: targetClaimDocId });
+          allSources.push(...res.sources);
+        }
+      } else {
+        // Fallback to general search if no analysis session
+        const res = await retrieveChunks(question, {
+          topK: 5,
+          claimId: activeClaimId,
+          policyId: activePolicyId,
+        });
+        allSources = res.sources;
+      }
     } catch (err: unknown) {
       console.error("Retrieval error:", err);
       return NextResponse.json({ error: "Failed to retrieve documents" }, { status: 500 });
     }
 
-    const { sources, confidence } = retrievalResult;
+    // Sort combined sources by similarity
+    allSources.sort((a: RetrievedSource, b: RetrievedSource) => b.similarity - a.similarity);
+    // Keep top 5 unique chunks by id
+    const uniqueChunks = Array.from(new Map(allSources.map((c) => [`${c.documentId}-${c.chunkIndex}`, c])).values()).slice(0, 5);
+    
+    const topSimilarity = uniqueChunks.length > 0 ? uniqueChunks[0].similarity : 0;
+    const confidence = topSimilarity > 0.8 ? "high" : topSimilarity > 0.6 ? "medium" : "low";
 
     // 4. Handle cases where no useful context is found
-    if (sources.length === 0) {
+    if (uniqueChunks.length === 0) {
       return NextResponse.json({
         id: `msg-${Date.now()}`,
         role: "assistant",
-        content: "I'm sorry, but I couldn't find any relevant information in your documents to answer that question.",
+        content: "The provided documents do not contain enough information to answer this question.",
         timestamp: new Date().toISOString(),
         sources: [],
         confidence: "low",
@@ -63,39 +102,36 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Construct a grounded prompt
-    const contextText = sources.map((s, i) => 
-      `--- Document [${i + 1}]${s.filename ? ` (${s.filename})` : ''} ---\n${s.content}`
+    const contextText = uniqueChunks.map((s: RetrievedSource, i: number) => 
+      `--- Document [${i + 1}] (${s.documentType ? s.documentType.toUpperCase() : 'DOCUMENT'}: ${s.documentName || s.filename || 'Unknown'}) ---\n${s.content}`
     ).join("\n\n");
-    const systemPrompt = `You are a helpful and professional insurance claims AI assistant. 
-You are strictly grounded in the provided documents. 
-You must answer the user's question using ONLY the provided context below.
+    
+    const systemPrompt = `You are a highly precise and objective insurance AI assistant.
+Your sole purpose is to answer the user's question using ONLY the provided document context below.
 
-Rules:
-- STRICTLY NO CHAIN OF THOUGHT. Do not output any internal reasoning, thoughts, or step-by-step logic.
-- Be concise. For simple factual questions (e.g. "What is the deductible?"), answer directly in a single sentence (e.g. "The deductible is $500."). Do not add unnecessary explanations, disclaimers, or summaries.
-- For broad/intent-based questions (e.g. "Explain my coverage", "What does my policy cover?"), generate a brief 2-4 sentence explanation summarizing the relevant coverage, limits, deductible, and important exclusions found ONLY in the retrieved context. Do not require an exact keyword match.
-- For more complex questions, provide enough explanation to be useful but remain direct.
-- Answer using ONLY the supplied retrieved context.
-- Do NOT invent policy provisions, claim numbers, or dollar amounts.
-- If the retrieved context does not contain enough information to answer the question, respond clearly by stating exactly what is missing from the documents (e.g. "The uploaded documents do not mention rental car coverage, so I can't confirm whether it is covered."). Do not guess or infer.
-- Never pretend uncertainty is certainty.
-- If possible, refer to the document filenames in your response.
+CRITICAL RULES:
+1. STRICTLY NO CHAIN OF THOUGHT. Do not output any internal reasoning, thoughts, or step-by-step logic.
+2. Be extremely concise. Give the answer directly in 1-3 sentences.
+3. NEVER invent policy terms, deductibles, coverage limits, exclusions, dates, claim amounts, or claim details.
+4. If the retrieved context does not explicitly contain the answer, you MUST state: "The documents do not provide enough information to answer this question."
+5. If the evidence between the policy and claim conflicts, explicitly state that there is conflicting information and cite what each document says.
+6. Answer ONLY using the provided retrieved context.
 
 Context:
 ${contextText}`;
 
     // 6. Call Groq
     const { text } = await generateText({
-      model: groq("qwen/qwen3.6-27b"),
+      model: groq("groq/compound"),
       system: systemPrompt,
       messages: messages.map((m: { role: "system" | "user" | "assistant"; content: string }) => ({
         role: m.role,
         content: m.content,
       })),
-      temperature: 0.1, // Keep it grounded
+      temperature: 0.1,
     });
 
-    // 7. Strip <think> reasoning blocks if present (for reasoning models)
+    // 7. Strip <think> reasoning blocks if present
     const finalContent = text.replace(/<think>[\s\S]*?<\/think>\s*/gi, '');
 
     // 8. Return answer with sources
@@ -104,7 +140,7 @@ ${contextText}`;
       role: "assistant",
       content: finalContent.trim(),
       timestamp: new Date().toISOString(),
-      sources,
+      sources: uniqueChunks,
       confidence,
     });
 

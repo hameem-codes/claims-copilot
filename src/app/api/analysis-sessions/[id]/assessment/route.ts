@@ -118,7 +118,7 @@ ${claimChunks}
 `;
 
     const { object: assessmentResult } = await generateObject({
-      model: groq("llama3-8b-8192"),
+      model: groq("groq/compound"),
       schema: AssessmentSchema,
       system: systemPrompt,
       messages: [{ role: "user", content: "Generate the final claim assessment." }],

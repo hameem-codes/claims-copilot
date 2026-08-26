@@ -91,10 +91,13 @@ export interface ToolCall {
 export interface RetrievedSource {
   chunkId: string;
   documentId: string;
+  documentType?: "policy" | "claim";
+  documentName?: string;
   chunkIndex: number;
   content: string;
   similarity: number;
   filename?: string;
+  pageNumber?: number;
 }
 
 export interface ConversationMessage {
@@ -218,10 +221,13 @@ export interface KnowledgeBaseEntry {
 // --- Zod Schemas for Fact Extraction & Comparison ---
 import { z } from "zod";
 
-const SourceSchema = z.object({
+export const SourceSchema = z.object({
   document_id: z.string().describe("The ID of the document where this fact was found"),
+  document_type: z.enum(["policy", "claim"]).describe("The type of document (policy or claim)"),
+  document_name: z.string().describe("The original name of the document"),
   chunk_index: z.number().describe("The chunk index where this fact was found"),
-  context_snippet: z.string().describe("A brief, exact quote from the document proving this fact")
+  context_snippet: z.string().describe("A brief, exact quote from the document proving this fact"),
+  page_number: z.number().optional().describe("The page number if available in the chunk")
 });
 
 export const PolicyExtractionSchema = z.object({
@@ -282,12 +288,7 @@ export const ComparisonSchema = z.object({
   missing_information: z.array(z.string()).describe("Identify information required to make a stronger assessment."),
   overall_assessment: z.string().describe("Overall assessment summarizing the comparison."),
   confidence: z.number().min(0).max(100).describe("Confidence score of the assessment from 0 to 100."),
-  sources: z.array(z.object({
-    document_id: z.string().describe("The document ID of the source."),
-    document_type: z.enum(["policy", "claim"]).describe("The type of document."),
-    chunk_index: z.number().describe("The chunk index of the source."),
-    context_snippet: z.string().describe("A brief exact quote proving the conclusion.")
-  })).describe("Sources that support material conclusions.")
+  sources: z.array(SourceSchema).describe("Sources that support material conclusions.")
 });
 
 export const DiscrepancySchema = z.object({
@@ -300,12 +301,7 @@ export const DiscrepancySchema = z.object({
     claim_value: z.string().nullable().describe("The value or statement from the claim."),
     explanation: z.string().describe("Explanation of why this is a discrepancy or potential issue."),
     confidence: z.number().min(0).max(100).describe("Confidence score of this finding from 0 to 100."),
-    sources: z.array(z.object({
-      document_id: z.string().describe("The document ID of the source."),
-      document_type: z.enum(["policy", "claim"]).describe("The type of document."),
-      chunk_index: z.number().describe("The chunk index of the source."),
-      context_snippet: z.string().describe("A brief exact quote proving the conclusion.")
-    })).describe("Sources supporting this discrepancy.")
+    sources: z.array(SourceSchema).describe("Sources supporting this discrepancy.")
   })).describe("List of discrepancies detected between the policy and claim.")
 });
 
@@ -317,10 +313,5 @@ export const AssessmentSchema = z.object({
   concerns: z.array(z.string()).describe("Short evidence-backed points indicating potential issues or concerns."),
   missing_information: z.array(z.string()).describe("A short list of missing information required for a final decision."),
   recommended_next_steps: z.array(z.string()).describe("A short list of recommended next steps."),
-  sources: z.array(z.object({
-    document_id: z.string().describe("The document ID of the source."),
-    document_type: z.enum(["policy", "claim"]).describe("The type of document."),
-    chunk_index: z.number().describe("The chunk index of the source."),
-    context_snippet: z.string().describe("A brief exact quote proving the conclusion.")
-  })).describe("Sources supporting material conclusions in this assessment.")
+  sources: z.array(SourceSchema).describe("Sources supporting material conclusions in this assessment.")
 });
