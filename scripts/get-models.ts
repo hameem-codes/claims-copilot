@@ -9,7 +9,7 @@ fetch('https://api.groq.com/openai/v1/models', {
 .then(r => r.json())
 .then(d => {
   if (d.data) {
-    console.log(d.data.map((m: any) => m.id).join('\n'));
+    console.log(d.data.map((m: { id: string }) => m.id).join('\n'));
   } else {
     console.log("Error:", d);
   }

@@ -160,13 +160,14 @@ export async function POST(req: NextRequest) {
     // 13. Return success
     return NextResponse.json({ documentId, chunksCreated: chunks.length, ocrStatus: "complete" }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 14. Global try/catch error handling
     console.error("[upload] Unhandled error:", error);
     
     // Debug logging to see exactly why it's failing
     const fs = await import("fs");
-    fs.writeFileSync("upload-error.txt", error.stack || error.message || String(error));
+    const err = error instanceof Error ? error : new Error(String(error));
+    fs.writeFileSync("upload-error.txt", err.stack || err.message || String(err));
 
     if (documentId) {
       // Attempt to mark as failed if it was already created

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import type {
   Customer,
@@ -90,7 +90,9 @@ export function AppProvider({ children, user }: { children: ReactNode; user?: Us
   const [insights, setInsights] = useState<AIInsight[]>(getInsightsForCustomer(initialCustomer.id));
 
   const conversationsRef = useRef(conversations);
-  conversationsRef.current = conversations;
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const selectCustomer = useCallback((customer: Customer) => {
     setCurrentCustomer(customer);

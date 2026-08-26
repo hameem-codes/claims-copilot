@@ -76,9 +76,10 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
 
       // Notify the user that the file was uploaded
       onSend(`I've uploaded a new document: ${file.name}. Can you confirm it's ready?`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Upload error:", error);
-      alert(`Failed to upload document: ${error.message || "Unknown error"}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      alert(`Failed to upload document: ${err.message || "Unknown error"}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

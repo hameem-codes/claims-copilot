@@ -43,7 +43,7 @@ async function runE2E() {
   }
 
   // Log exactly the source filenames
-  chatData.sources?.forEach((s: any, i: number) => {
+  chatData.sources?.forEach((s: { filename: string, documentId: string }, i: number) => {
     console.log(`Source ${i+1}: ${s.filename} (ID: ${s.documentId})`);
   });
 

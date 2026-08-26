@@ -47,7 +47,8 @@ export async function POST(request: Request) {
 
     // The cookies() setAll block above automatically handles chunking and setting the cookies on the response!
     return NextResponse.json({ success: true, userId: data.user.id });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

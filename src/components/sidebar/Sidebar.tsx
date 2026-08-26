@@ -24,7 +24,12 @@ export function Sidebar() {
   );
 
   const [today, setToday] = useState("");
-  useEffect(() => setToday(new Date().toISOString().split("T")[0]), []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setToday(new Date().toISOString().split("T")[0]);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   const todayConvs = today
     ? customerConversations.filter((c) => c.updatedAt.split("T")[0] === today)
     : [];

@@ -34,13 +34,14 @@ export async function retrieveChunks(
   const isUUID = (str: string | undefined | null) => 
     str && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
 
-  let { data: chunks, error } = await supabase.rpc("match_document_chunks", {
+  const { data, error } = await supabase.rpc("match_document_chunks", {
     query_embedding: queryEmbedding,
     match_count: options?.topK || 5,
     filter_document_id: isUUID(options?.documentId) ? options!.documentId : null,
     filter_claim_id: isUUID(options?.claimId) ? options!.claimId : null,
     filter_policy_id: isUUID(options?.policyId) ? options!.policyId : null,
   });
+  let chunks = data;
 
   if (error) {
     console.error("RPC match_document_chunks failed:", error);
