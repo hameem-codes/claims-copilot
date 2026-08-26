@@ -34,14 +34,43 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     const claimId = formData.get("claimId") as string | null;
     const policyId = formData.get("policyId") as string | null;
+    const analysisSessionId = formData.get("analysis_session_id") as string | null;
+    const documentType = formData.get("document_type") as string | null;
 
     // 3. Reject if no file
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // Enforce reasonable file size (e.g. 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "File size exceeds the 10MB limit" }, { status: 400 });
+    }
+
     // 4. Reject unsupported file types
-    const validTypes = ["application/pdf", "image/png", "image/jpeg"];
+    let validTypes = ["application/pdf", "image/png", "image/jpeg"];
+    
+    // If uploading for an analysis session, strictly require PDF
+    if (analysisSessionId) {
+      validTypes = ["application/pdf"];
+      
+      if (documentType !== "policy" && documentType !== "claim") {
+        return NextResponse.json({ error: "document_type must be 'policy' or 'claim' when analysis_session_id is provided" }, { status: 400 });
+      }
+
+      // Verify the user owns the analysis session
+      const { data: session, error: sessionError } = await authClient
+        .from("analysis_sessions")
+        .select("id")
+        .eq("id", analysisSessionId)
+        .single();
+        
+      if (sessionError || !session) {
+        return NextResponse.json({ error: "Invalid analysis_session_id or unauthorized" }, { status: 403 });
+      }
+    }
+
     if (!validTypes.includes(file.type)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
@@ -71,6 +100,7 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         claim_id: claimId || null,
         policy_id: policyId || null,
+        document_type: documentType || null,
         ocr_status: "processing",
       })
       .select("id")
@@ -146,7 +176,25 @@ export async function POST(req: NextRequest) {
     // 12. Update document ocr_status to complete
     await adminClient.from("documents").update({ ocr_status: "complete" }).eq("id", documentId);
 
-    // 13. Return success
+    // 13. Update analysis session if applicable
+    if (analysisSessionId && documentType && documentId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatePayload: Record<string, any> = {};
+      if (documentType === "policy") updatePayload.policy_document_id = documentId;
+      if (documentType === "claim") updatePayload.claim_document_id = documentId;
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: sessionUpdateError } = await (authClient as any)
+        .from("analysis_sessions")
+        .update(updatePayload)
+        .eq("id", analysisSessionId);
+        
+      if (sessionUpdateError) {
+        throw new Error(`Failed to associate document with analysis session: ${sessionUpdateError.message}`);
+      }
+    }
+
+    // 14. Return success
     return NextResponse.json({ documentId, chunksCreated: chunks.length, ocrStatus: "complete" }, { status: 200 });
 
   } catch (error: unknown) {

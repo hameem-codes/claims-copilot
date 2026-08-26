@@ -14,6 +14,7 @@ export interface DocumentInfo {
   customerId?: string | null;
   claimId?: string | null;
   projectId?: string | null;
+  document_type?: "policy" | "claim" | null;
   filePath: string;
   isPinned?: boolean;
 }
