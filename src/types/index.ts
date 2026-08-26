@@ -191,6 +191,7 @@ export interface AnalysisSession {
   claim_document_id: string | null;
   policy_extracted_data?: Record<string, unknown> | null;
   claim_extracted_data?: Record<string, unknown> | null;
+  comparison_data?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -212,7 +213,7 @@ export interface KnowledgeBaseEntry {
   content: string;
 }
 
-// --- Zod Schemas for Fact Extraction ---
+// --- Zod Schemas for Fact Extraction & Comparison ---
 import { z } from "zod";
 
 const SourceSchema = z.object({
@@ -246,4 +247,43 @@ export const ClaimExtractionSchema = z.object({
   requested_coverage: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of coverages requested under this claim."),
   supporting_evidence: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of supporting evidence mentioned (e.g., photos, police report)."),
   relevant_dates: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("Other relevant dates mentioned in the claim.")
+});
+
+export const ComparisonSchema = z.object({
+  coverage_status: z.enum(["covered", "not_covered", "uncertain"]).describe("Is the claimed incident/event covered by the policy?"),
+  coverage_reason: z.string().describe("Which policy coverage supports the assessment? Or why is it uncertain?"),
+  deductible: z.object({
+    policy_deductible: z.string().nullable().describe("The policy deductible amount."),
+    applicable_deductible: z.string().nullable().describe("The deductible applicable to this specific claim."),
+    explanation: z.string().describe("Explain how the deductible relates to the claim.")
+  }),
+  limit_analysis: z.object({
+    applicable_limit: z.string().nullable().describe("The policy coverage limit applicable to this claim."),
+    claim_amount: z.string().nullable().describe("The amount claimed."),
+    exceeds_limit: z.boolean().nullable().describe("Determine whether the claim exceeds the applicable limit."),
+    explanation: z.string().describe("Explain the limit analysis.")
+  }),
+  exclusion_analysis: z.object({
+    relevant_exclusions: z.array(z.string()).describe("Identify policy exclusions relevant to the claim."),
+    applicable: z.boolean().nullable().describe("Does an exclusion appear applicable?"),
+    explanation: z.string().describe("Explain whether an exclusion appears applicable. Never assume an exclusion applies without evidence.")
+  }),
+  date_analysis: z.object({
+    issues: z.boolean().describe("Are there any date issues (e.g. incident occurred outside policy period)?"),
+    explanation: z.string().describe("Compare policy effective date, expiration date, incident date, and claim submission date.")
+  }),
+  incident_analysis: z.object({
+    matching_coverage: z.boolean().nullable().describe("Does the incident description/type match the policy's covered events?"),
+    explanation: z.string().describe("Compare the claim's incident description/type against the policy's covered events.")
+  }),
+  important_clauses: z.array(z.string()).describe("Identify policy clauses that materially affect the claim."),
+  missing_information: z.array(z.string()).describe("Identify information required to make a stronger assessment."),
+  overall_assessment: z.string().describe("Overall assessment summarizing the comparison."),
+  confidence: z.number().min(0).max(100).describe("Confidence score of the assessment from 0 to 100."),
+  sources: z.array(z.object({
+    document_id: z.string().describe("The document ID of the source."),
+    document_type: z.enum(["policy", "claim"]).describe("The type of document."),
+    chunk_index: z.number().describe("The chunk index of the source."),
+    context_snippet: z.string().describe("A brief exact quote proving the conclusion.")
+  })).describe("Sources that support material conclusions.")
 });
