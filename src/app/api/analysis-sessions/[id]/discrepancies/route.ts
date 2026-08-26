@@ -113,7 +113,7 @@ ${claimChunks}
 `;
 
     const { object: discrepancyResult } = await generateObject({
-      model: groq("groq/compound"),
+      model: groq("openai/gpt-oss-120b"),
       schema: DiscrepancySchema,
       system: systemPrompt,
       messages: [{ role: "user", content: "Detect discrepancies between the policy and claim." }],

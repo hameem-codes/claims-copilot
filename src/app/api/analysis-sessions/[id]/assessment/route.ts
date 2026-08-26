@@ -118,7 +118,7 @@ ${claimChunks}
 `;
 
     const { object: assessmentResult } = await generateObject({
-      model: groq("groq/compound"),
+      model: groq("openai/gpt-oss-120b"),
       schema: AssessmentSchema,
       system: systemPrompt,
       messages: [{ role: "user", content: "Generate the final claim assessment." }],

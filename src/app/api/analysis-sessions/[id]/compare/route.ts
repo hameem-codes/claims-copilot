@@ -112,7 +112,7 @@ ${claimChunks}
 `;
 
     const { object: comparisonResult } = await generateObject({
-      model: groq("groq/compound"),
+      model: groq("openai/gpt-oss-120b"),
       schema: ComparisonSchema,
       system: systemPrompt,
       messages: [{ role: "user", content: "Compare the policy and claim to assess coverage." }],

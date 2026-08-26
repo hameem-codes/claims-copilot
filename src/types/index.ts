@@ -197,6 +197,7 @@ export interface AnalysisSession {
   comparison_data?: Record<string, unknown> | null;
   discrepancy_data?: Record<string, unknown> | null;
   assessment_data?: Record<string, unknown> | null;
+  timeline_data?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -222,12 +223,12 @@ export interface KnowledgeBaseEntry {
 import { z } from "zod";
 
 export const SourceSchema = z.object({
-  document_id: z.string().describe("The ID of the document where this fact was found"),
-  document_type: z.enum(["policy", "claim"]).describe("The type of document (policy or claim)"),
-  document_name: z.string().describe("The original name of the document"),
-  chunk_index: z.number().describe("The chunk index where this fact was found"),
-  context_snippet: z.string().describe("A brief, exact quote from the document proving this fact"),
-  page_number: z.number().optional().describe("The page number if available in the chunk")
+  document_id: z.string().nullable().describe("The ID of the document where this fact was found"),
+  document_type: z.enum(["policy", "claim"]).nullable().describe("The type of document (policy or claim)"),
+  document_name: z.string().nullable().describe("The original name of the document"),
+  chunk_index: z.number().nullable().describe("The chunk index where this fact was found"),
+  context_snippet: z.string().nullable().describe("A brief, exact quote from the document proving this fact"),
+  page_number: z.number().nullable().describe("The page number if available in the chunk")
 });
 
 export const PolicyExtractionSchema = z.object({
@@ -314,4 +315,20 @@ export const AssessmentSchema = z.object({
   missing_information: z.array(z.string()).describe("A short list of missing information required for a final decision."),
   recommended_next_steps: z.array(z.string()).describe("A short list of recommended next steps."),
   sources: z.array(SourceSchema).describe("Sources supporting material conclusions in this assessment.")
+});
+
+export const TimelineEventSchema = z.object({
+  id: z.string().describe("Unique identifier for this event"),
+  date: z.string().describe("The exact date of the event in YYYY-MM-DD or relevant format"),
+  event_type: z.enum(["policy_effective", "policy_expiration", "incident", "claim_submitted", "document_created", "analysis_created", "other"]).describe("The type of event"),
+  title: z.string().describe("A concise title for the event"),
+  description: z.string().describe("A brief description of what happened"),
+  source: SourceSchema.nullable().describe("Source of this event information, if applicable"),
+  confidence: z.number().min(0).max(100).describe("Confidence score of this event date from 0 to 100")
+});
+
+export const TimelineSchema = z.object({
+  events: z.array(TimelineEventSchema).describe("Chronological list of events"),
+  incident_timing: z.enum(["before_policy_period", "during_policy_period", "after_policy_period", "unknown"]).describe("When the incident occurred relative to the policy period"),
+  conflicts: z.array(z.string()).describe("Any explicit date conflicts found across documents")
 });

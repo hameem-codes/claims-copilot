@@ -122,7 +122,7 @@ ${contextText}`;
 
     // 6. Call Groq
     const { text } = await generateText({
-      model: groq("groq/compound"),
+      model: groq("openai/gpt-oss-120b"),
       system: systemPrompt,
       messages: messages.map((m: { role: "system" | "user" | "assistant"; content: string }) => ({
         role: m.role,

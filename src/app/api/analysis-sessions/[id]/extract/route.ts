@@ -87,7 +87,7 @@ Document Context:
 ${contextText}`;
 
       const { object } = await generateObject({
-        model: groq("groq/compound"),
+        model: groq("openai/gpt-oss-120b"),
         schema,
         system: systemPrompt,
         messages: [{ role: "user", content: `Extract the ${documentType} facts from the provided text.` }],
