@@ -46,7 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(defaultConversations[0]);
   const [memories] = useState<MemoryEntry[]>(defaultMemories);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeClaimId, setActiveClaimId] = useState<string | null>("CLM-20481");
+  const [activeClaimId, setActiveClaimId] = useState<string | null>(user ? null : "CLM-20481");
   const [claimViewMode, setClaimViewMode] = useState<ClaimViewMode>("list");
   const [insights, setInsights] = useState<AIInsight[]>(getInsightsForCustomer("cust-001"));
   const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);

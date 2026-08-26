@@ -9,16 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^4.0.31",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "better-auth": "^1.7.1",
     "canvas": "^3.2.3",
     "next": "16.3.2",
-    "pdf-parse": "^2.4.5",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.2.108",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
