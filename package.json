@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.31",
-    "ai": "^7.0.79",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
+    "ai": "^7.0.79",
     "better-auth": "^1.7.1",
     "canvas": "^3.2.3",
     "next": "16.3.2",
@@ -22,7 +22,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tesseract.js": "^7.0.0",
-    "unpdf": "^1.8.1"
+    "unpdf": "^1.8.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

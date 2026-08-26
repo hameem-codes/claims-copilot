@@ -189,6 +189,8 @@ export interface AnalysisSession {
   status: string;
   policy_document_id: string | null;
   claim_document_id: string | null;
+  policy_extracted_data?: Record<string, unknown> | null;
+  claim_extracted_data?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -210,3 +212,38 @@ export interface KnowledgeBaseEntry {
   content: string;
 }
 
+// --- Zod Schemas for Fact Extraction ---
+import { z } from "zod";
+
+const SourceSchema = z.object({
+  document_id: z.string().describe("The ID of the document where this fact was found"),
+  chunk_index: z.number().describe("The chunk index where this fact was found"),
+  context_snippet: z.string().describe("A brief, exact quote from the document proving this fact")
+});
+
+export const PolicyExtractionSchema = z.object({
+  policy_number: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The policy number."),
+  policy_type: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The type of policy (e.g., auto, home)."),
+  effective_date: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The effective date of the policy."),
+  expiration_date: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The expiration date of the policy."),
+  premium: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The policy premium amount."),
+  coverage_types: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of coverage types included."),
+  coverage_limits: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of coverage limits."),
+  deductible: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The deductible amount."),
+  exclusions: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of exclusions mentioned in the policy."),
+  covered_events: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of specifically covered events."),
+  important_clauses: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("Important clauses or conditions.")
+});
+
+export const ClaimExtractionSchema = z.object({
+  claim_number: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The claim number."),
+  incident_date: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The date the incident occurred."),
+  incident_type: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The type of incident (e.g., collision, theft, water damage)."),
+  claim_amount: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("The total amount claimed."),
+  incident_description: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("A description of the incident."),
+  property_or_vehicle_details: z.object({ value: z.string().nullable(), source: SourceSchema.nullable() }).describe("Details of the property or vehicle involved."),
+  damages: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of specific damages reported."),
+  requested_coverage: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of coverages requested under this claim."),
+  supporting_evidence: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("List of supporting evidence mentioned (e.g., photos, police report)."),
+  relevant_dates: z.array(z.object({ value: z.string(), source: SourceSchema })).describe("Other relevant dates mentioned in the claim.")
+});
