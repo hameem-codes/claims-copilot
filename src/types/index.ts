@@ -182,6 +182,17 @@ export interface SavedAnalysis {
   content: string;    // full analysis text
 }
 
+export interface AnalysisSession {
+  id: string;
+  user_id: string;
+  title: string;
+  status: string;
+  policy_document_id: string | null;
+  claim_document_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Support Resources ---
 export interface SupportArticle {
   id: string;
