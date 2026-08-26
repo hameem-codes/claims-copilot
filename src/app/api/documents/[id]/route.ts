@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDocument, deleteDocument, updateDocument } from "@/lib/documents-store";
-import fs from "fs";
-import path from "path";
+import { getDocument, deleteDocument, updateDocument, getDocumentFileBuffer } from "@/lib/documents-store";
 
 interface RouteParams {
   params: Promise<{
@@ -17,16 +15,16 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    const fullPath = path.join(process.cwd(), "data", "uploads", path.basename(doc.filePath));
-    if (!fs.existsSync(fullPath)) {
-      return NextResponse.json({ error: "File not found on disk" }, { status: 404 });
+    const fileData = await getDocumentFileBuffer(doc);
+    if (!fileData) {
+      return NextResponse.json({ error: "File content not found" }, { status: 404 });
     }
 
-    const fileBuffer = await fs.promises.readFile(fullPath);
-    
-    return new Response(fileBuffer, {
+    const responseBody = new Uint8Array(fileData.buffer);
+
+    return new Response(responseBody, {
       headers: {
-        "Content-Type": doc.type,
+        "Content-Type": fileData.type || doc.type || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.name)}"`,
       },
     });
@@ -56,12 +54,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const updates = await req.json();
-    
+
     const doc = await updateDocument(id, updates);
     if (!doc) {
       return NextResponse.json({ error: "Document not found or could not be updated" }, { status: 404 });
     }
-    
+
     return NextResponse.json(doc);
   } catch (error: unknown) {
     console.error("API document detail PATCH error:", error);
@@ -69,4 +67,3 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

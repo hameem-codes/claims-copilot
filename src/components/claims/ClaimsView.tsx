@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { claims, policies } from "@/data/mock-data";
+import { claims } from "@/data/mock-data";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { Claim, ClaimStatus } from "@/types";
 
@@ -31,7 +31,6 @@ export function ClaimsView() {
 
   // Claim Detail View
   if (selectedClaim) {
-    const policy = policies.find((p) => p.id === selectedClaim.policyId);
     return (
       <div className="h-full overflow-y-auto bg-[var(--bg)] relative">
         <div className="geo-dot-grid absolute inset-0 opacity-20 pointer-events-none" />

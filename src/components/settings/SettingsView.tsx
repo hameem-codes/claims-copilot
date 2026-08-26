@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { signOut } from "@/lib/auth-client";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 type SettingsTab = "account" | "preferences" | "data" | "security";
 
@@ -15,6 +16,7 @@ const tabs: { id: SettingsTab; label: string; icon: string }[] = [
 
 export function SettingsView() {
   const { currentCustomer, savedAnalyses, deleteAnalysis } = useApp();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
   const [notifyClaims, setNotifyClaims] = useState(true);
   const [notifyDocs, setNotifyDocs] = useState(true);
@@ -26,12 +28,13 @@ export function SettingsView() {
   const handleSignOut = async () => {
     setSignOutLoading(true);
     try {
-      await signOut();
+      const supabase = createClient();
+      await supabase.auth.signOut();
     } catch {
       // noop
     } finally {
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = "/login";
+      router.push("/login");
+      router.refresh();
     }
   };
 

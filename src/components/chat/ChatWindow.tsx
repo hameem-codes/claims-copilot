@@ -9,7 +9,7 @@ import { useTime } from "@/lib/hooks";
 export function ChatWindow() {
   const {
     currentConversation, currentCustomer, sendMessage, isProcessing,
-    activeClaimId, setView,
+    activeClaimId,
   } = useApp();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const time = useTime();

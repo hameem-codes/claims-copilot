@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export function SignupForm() {
@@ -33,25 +33,53 @@ export function SignupForm() {
       return;
     }
 
+    if (!isSupabaseConfigured()) {
+      setError("Authentication service is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error: signUpError } = await authClient.signUp.email({
+      const supabase = createClient();
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
-        name: name.trim(),
+        options: {
+          data: {
+            full_name: name.trim(),
+          },
+        },
       });
 
       if (signUpError) {
-        setError(signUpError.message || "Failed to create account. Please try again.");
-      } else {
-        // Automatically redirects or prompts log in
+        if (signUpError.message?.toLowerCase().includes("already registered") || signUpError.message?.toLowerCase().includes("already exists")) {
+          setError("An account with this email address already exists.");
+        } else {
+          setError(signUpError.message || "Failed to create account. Please try again.");
+        }
+      } else if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        // Supabase returns an empty identities array if the user is already registered
+        setError("An account with this email address already exists.");
+      } else if (data?.session) {
+        // Authenticated session established immediately
         router.push("/");
         router.refresh();
+      } else if (data?.user) {
+        // Account created, redirect to login
+        router.push("/login");
+        router.refresh();
+      } else {
+        setError("Failed to create account. Please try again.");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Sign up failed:", err);
-      setError("An unexpected error occurred. Please try again.");
+      const message = err instanceof Error ? err.message : "";
+      if (message.toLowerCase().includes("url") || message.toLowerCase().includes("key")) {
+        setError("Authentication service is not configured. Please check environment variables.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

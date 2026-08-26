@@ -37,7 +37,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
           recognitionRef.current.onerror = null;
           recognitionRef.current.onend = null;
           recognitionRef.current.stop();
-        } catch (e) {
+        } catch {
           // Ignore cleanup errors
         }
       }
@@ -90,7 +90,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
 
     if (isListening) {
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch(e) {}
+        try { recognitionRef.current.stop(); } catch {}
         recognitionRef.current = null;
       }
       setIsListening(false);
@@ -98,7 +98,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
     }
 
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch(e) {}
+      try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
     }
 
@@ -191,7 +191,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
         case "language-not-supported":
           if (recognition.lang !== "en-US") {
              recognition.lang = "en-US";
-             try { recognition.start(); } catch(e) {}
+             try { recognition.start(); } catch {}
           }
           break;
         case "no-speech":

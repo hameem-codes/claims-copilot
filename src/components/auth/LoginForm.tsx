@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export function LoginForm() {
@@ -21,26 +21,36 @@ export function LoginForm() {
       return;
     }
 
+    if (!isSupabaseConfigured()) {
+      setError("Authentication service is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment variables.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error: signInError } = await authClient.signIn.email({
+      const supabase = createClient();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
-        rememberMe,
       });
 
-      if (signInError) {
+      if (signInError || !data?.session) {
         // Use generic error for security
         setError("Invalid email or password.");
       } else {
-        // Successful login, redirect to main application root
+        // Successful login with verified server session, redirect to main application root
         router.push("/");
         router.refresh();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Sign in failed:", err);
-      setError("Invalid email or password.");
+      const message = err instanceof Error ? err.message : "";
+      if (message.toLowerCase().includes("url") || message.toLowerCase().includes("key")) {
+        setError("Authentication service is not configured. Please check environment variables.");
+      } else {
+        setError("Invalid email or password.");
+      }
     } finally {
       setLoading(false);
     }

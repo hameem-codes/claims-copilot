@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { embedText } from "@/lib/rag/embed";
 import Tesseract from "tesseract.js";
 import { Buffer } from "buffer";
-
-
 
 // Note: Next.js API route configuration
 export const maxDuration = 300; // 5 minutes (max for Vercel Pro, ignored on standard free tier but good practice for OCR)
@@ -24,15 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     // 1. Get authenticated user FIRST before reading the body
     const authClient = await createSupabaseServerClient();
-    const cookieStore = await cookies();
-
-    console.log("--- AUTH DEBUG START ---");
-    console.log("[Upload API] Incoming Headers:", Array.from(req.headers.entries()));
-    console.log("[Upload API] Incoming Cookies (req.cookies):", req.cookies.getAll());
-    console.log("[Upload API] Parsed Cookies (next/headers):", cookieStore.getAll());
     const authResult = await authClient.auth.getUser();
-    console.log("[Upload API] getUser() result:", JSON.stringify(authResult, null, 2));
-    console.log("--- AUTH DEBUG END ---");
 
     const { data: { user } } = authResult;
     if (!user) {
@@ -92,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
     documentId = docRow.id;
 
-    // 7. Extract text with tesseract.js
+    // 7. Extract text with tesseract.js or unpdf
     let extractedText = "";
 
     if (file.type === "application/pdf") {

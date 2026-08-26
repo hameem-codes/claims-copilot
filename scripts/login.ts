@@ -10,10 +10,17 @@ const supabase = createClient(
 );
 
 async function main() {
-  // Replace with a real user's email/password from your Supabase dashboard
+  const email = process.env.TEST_USER_EMAIL || process.argv[2];
+  const password = process.env.TEST_USER_PASSWORD || process.argv[3];
+
+  if (!email || !password) {
+    console.error("Please provide email and password via TEST_USER_EMAIL/TEST_USER_PASSWORD env vars or CLI arguments.");
+    process.exit(1);
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: "test@example.com", 
-    password: "hameem"
+    email,
+    password,
   });
 
   if (error) {
