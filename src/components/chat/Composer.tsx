@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from "react";
 
 interface ComposerProps {
   onSend: (message: string, attachment?: { id: string, name: string, type: string, size: number }) => void;
@@ -19,7 +19,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
   const [value, setValue] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [attachment, setAttachment] = useState<{ id: string, name: string, type: string, size: number } | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +54,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
     }
 
     try {
-      setUploading(true);
+      setIsUploading(true);
       const formData = new FormData();
       formData.append("file", file);
 
@@ -80,7 +80,7 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
       const msg = err instanceof Error ? err.message : "An error occurred during upload.";
       alert(msg);
     } finally {
-      setUploading(false);
+      setIsUploading(false);
     }
   };
 
@@ -362,8 +362,8 @@ export function Composer({ onSend, disabled, placeholder = "Ask about your claim
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || disabled}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${uploading ? 'opacity-50 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              disabled={isUploading || disabled}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${isUploading ? 'opacity-50 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
               title="Attach file"
             >
               📎

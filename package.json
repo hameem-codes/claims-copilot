@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.31",
+    "ai": "^4.0.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "better-auth": "^1.7.1",

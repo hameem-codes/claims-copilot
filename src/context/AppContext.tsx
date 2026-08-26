@@ -3,7 +3,6 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import type { Customer, Conversation, ConversationMessage, MemoryEntry, AIInsight, AppView, ClaimViewMode, SavedAnalysis } from "@/types";
 import { customers as mockCustomers, defaultConversations, defaultMemories, getInsightsForCustomer, claims as allClaims } from "@/data/mock-data";
-import { processMessage } from "@/lib/mock-ai";
 
 interface AppState {
   view: AppView;
@@ -38,10 +37,20 @@ export function useApp() {
   return ctx;
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children, user }: { children: ReactNode; user?: import("@supabase/supabase-js").User | null }) {
+  const initialCustomer: Customer = user ? {
+    id: user.id,
+    name: user.email?.split("@")[0] || "User",
+    email: user.email || "",
+    phone: "",
+    customerSince: new Date().getFullYear().toString(),
+    preferredContact: "email",
+    avatarColor: "bg-blue-500",
+  } : mockCustomers[0];
+
   const [view, setView] = useState<AppView>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentCustomer, setCurrentCustomer] = useState<Customer>(mockCustomers[0]);
+  const [currentCustomer, setCurrentCustomer] = useState<Customer>(initialCustomer);
   const [conversations, setConversations] = useState<Conversation[]>(defaultConversations);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(defaultConversations[0]);
   const [memories] = useState<MemoryEntry[]>(defaultMemories);
@@ -95,11 +104,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setConversations((prev) => prev.map((c) => (c.id === updatedConv.id ? updatedConv : c)));
     setIsProcessing(true);
     try {
-      const response = await processMessage(content, currentCustomer.id, updatedMessages);
-      const finalConv = { ...updatedConv, messages: [...updatedMessages, response], updatedAt: new Date().toISOString(), activeClaimId: response.referencedClaimId || updatedConv.activeClaimId, activePolicyId: response.referencedPolicyId || updatedConv.activePolicyId };
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: updatedMessages,
+          activeClaimId,
+          activePolicyId: undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("API response error");
+      }
+
+      const responseData = await response.json();
+      if (responseData.error) {
+        throw new Error(responseData.error);
+      }
+
+      const finalConv = {
+        ...updatedConv,
+        messages: [...updatedMessages, responseData],
+        updatedAt: new Date().toISOString(),
+        activeClaimId: responseData.referencedClaimId || updatedConv.activeClaimId,
+        activePolicyId: responseData.referencedPolicyId || updatedConv.activePolicyId,
+      };
       setCurrentConversation(finalConv);
       setConversations((prev) => prev.map((c) => (c.id === finalConv.id ? finalConv : c)));
-      if (response.referencedClaimId) setActiveClaimId(response.referencedClaimId);
+      if (responseData.referencedClaimId) setActiveClaimId(responseData.referencedClaimId);
     } catch {
       const errorMessage: ConversationMessage = { id: `msg-${Date.now()}`, role: "assistant", content: "I apologize, but I encountered an error processing your request. Please try again.", timestamp: new Date().toISOString() };
       const errorConv = { ...updatedConv, messages: [...updatedMessages, errorMessage] };
@@ -125,4 +160,3 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return <AppContext.Provider value={{ view, setView, sidebarOpen, setSidebarOpen, currentCustomer, selectCustomer, conversations, currentConversation, createConversation, selectConversation, sendMessage, isProcessing, memories, getMemoriesForCustomer, activeClaimId, setActiveClaimId, claimViewMode, setClaimViewMode, insights, savedAnalyses, saveAnalysis, deleteAnalysis }}>{children}</AppContext.Provider>;
 }
-
