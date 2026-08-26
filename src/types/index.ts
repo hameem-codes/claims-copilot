@@ -88,6 +88,15 @@ export interface ToolCall {
   result?: string;
 }
 
+export interface RetrievedSource {
+  chunkId: string;
+  documentId: string;
+  chunkIndex: number;
+  content: string;
+  similarity: number;
+  filename?: string;
+}
+
 export interface ConversationMessage {
   id: string;
   role: MessageRole;
@@ -102,6 +111,8 @@ export interface ConversationMessage {
     type: string;
     size: number;
   }[];
+  sources?: RetrievedSource[];
+  confidence?: "high" | "medium" | "low";
 }
 
 export interface Conversation {

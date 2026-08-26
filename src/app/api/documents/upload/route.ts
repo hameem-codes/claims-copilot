@@ -1,50 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
 import { embedText } from "@/lib/rag/embed";
 import Tesseract from "tesseract.js";
+import { Buffer } from "buffer";
 
 // Note: Next.js API route configuration
 export const maxDuration = 300; // 5 minutes (max for Vercel Pro, ignored on standard free tier but good practice for OCR)
 
 export async function POST(req: NextRequest) {
   let documentId: string | null = null;
-  let adminClient: ReturnType<typeof createAdminClient> | null = null;
+  
+  // Admin client for overriding RLS during server-side insertions/uploads
+  const adminClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   try {
-    adminClient = createAdminClient();
-  } catch (e) {
-    console.error("[upload] Supabase admin client initialization failed:", e);
-    return NextResponse.json({ error: "Storage configuration error" }, { status: 500 });
-  }
+    // 1. Get authenticated user FIRST before reading the body
+    const authClient = await createSupabaseServerClient();
+    const authResult = await authClient.auth.getUser();
 
-  try {
-    // 1. Accept multipart/form-data
+    const { data: { user } } = authResult;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
+
+    // 2. Accept multipart/form-data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const claimId = formData.get("claimId") as string | null;
     const policyId = formData.get("policyId") as string | null;
 
-    // 2. Reject if no file
+    // 3. Reject if no file
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // 3. Reject unsupported file types
+    // 4. Reject unsupported file types
     const validTypes = ["application/pdf", "image/png", "image/jpeg"];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
-
-    // 4. Get authenticated user
-    const authClient = await createClient();
-    const { data: { user } } = await authClient.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userId = user.id;
 
     // 5. Upload file to Supabase Storage
     const originalFilename = file.name;
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (uploadError) {
-      throw new Error(`Storage upload failed: ${uploadError.message}`);
+      throw new Error(`Storage upload failed (check if 'documents' bucket exists and permissions are correct): ${uploadError.message}`);
     }
 
     // 6. Insert a row into documents
@@ -81,14 +81,14 @@ export async function POST(req: NextRequest) {
     }
     documentId = docRow.id;
 
-    // 7. Extract text with tesseract.js
+    // 7. Extract text with tesseract.js or unpdf
     let extractedText = "";
 
     if (file.type === "application/pdf") {
-      const pdfParseMod = await import("pdf-parse");
-      const pdfParse = ((pdfParseMod as { default?: (buf: Buffer) => Promise<{ text: string }> }).default || pdfParseMod) as (buf: Buffer) => Promise<{ text: string }>;
-      const parsed = await pdfParse(Buffer.from(fileBuffer));
-      extractedText = parsed.text;
+      const { extractText, getDocumentProxy } = await import("unpdf");
+      const pdf = await getDocumentProxy(new Uint8Array(fileBuffer));
+      const { text } = await extractText(pdf, { mergePages: true });
+      extractedText = Array.isArray(text) ? text.join("\n") : text;
     } else {
       // Direct image OCR for PNG/JPEG
       const { data: { text } } = await Tesseract.recognize(Buffer.from(fileBuffer), "eng");
@@ -121,9 +121,10 @@ export async function POST(req: NextRequest) {
       let embedding = null;
       try {
         embedding = await embedText(chunks[i]);
-      } catch (e) {
+      } catch (e: unknown) {
         console.error(`[upload] Embedding failed for chunk ${i}:`, e);
-        // Continue to next chunk without failing the request
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        throw new Error(`Embedding failed for chunk ${i}: ${errorMessage}`);
       }
       
       insertData.push({
@@ -152,7 +153,10 @@ export async function POST(req: NextRequest) {
     // 14. Global try/catch error handling
     console.error("[upload] Unhandled error:", error);
     
-    if (documentId && adminClient) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[upload] Upload error stack:", err.stack || err.message);
+
+    if (documentId) {
       // Attempt to mark as failed if it was already created
       try {
         await adminClient.from("documents").update({ ocr_status: "failed" }).eq("id", documentId);

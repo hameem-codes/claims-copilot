@@ -61,6 +61,6 @@ export async function embedText(text: string): Promise<number[]> {
   }
 
   // If all attempts fail, throw a specific error message
-  const errMessage = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new Error(`Embedding failed after 3 retries: ${errMessage}`);
+  const err = lastError instanceof Error ? lastError : new Error(String(lastError));
+  throw new Error(`Embedding failed after 3 retries (Check HUGGINGFACE_API_KEY rate limits or model status): ${err.message}`);
 }

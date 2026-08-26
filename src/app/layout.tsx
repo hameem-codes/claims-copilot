@@ -26,14 +26,19 @@ export const metadata: Metadata = {
   description: "Intelligent insurance claims support copilot with AI-powered assistance",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+import { createClient } from "@/lib/supabase/server";
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html
       lang="en"
       className={`${outfit.variable} ${plusJakarta.variable} ${jetbrains.variable}`}
     >
       <body className="h-screen overflow-hidden bg-background text-foreground">
-        <AppProvider>{children}</AppProvider>
+        <AppProvider user={user}>{children}</AppProvider>
       </body>
     </html>
   );
