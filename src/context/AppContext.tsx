@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
-import type { Customer, Conversation, ConversationMessage, MemoryEntry, AIInsight, AppView, ClaimViewMode } from "@/types";
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
+import type { Customer, Conversation, ConversationMessage, MemoryEntry, AIInsight, AppView, ClaimViewMode, SavedAnalysis } from "@/types";
 import { customers as mockCustomers, defaultConversations, defaultMemories, getInsightsForCustomer, claims as allClaims } from "@/data/mock-data";
 import { processMessage } from "@/lib/mock-ai";
 
@@ -16,7 +16,7 @@ interface AppState {
   currentConversation: Conversation | null;
   createConversation: () => void;
   selectConversation: (id: string) => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachment?: { id: string, name: string, type: string, size: number }) => Promise<void>;
   isProcessing: boolean;
   memories: MemoryEntry[];
   getMemoriesForCustomer: (customerId: string) => MemoryEntry[];
@@ -25,6 +25,9 @@ interface AppState {
   claimViewMode: ClaimViewMode;
   setClaimViewMode: (mode: ClaimViewMode) => void;
   insights: AIInsight[];
+  savedAnalyses: SavedAnalysis[];
+  saveAnalysis: (analysis: Omit<SavedAnalysis, "id" | "createdAt">) => void;
+  deleteAnalysis: (id: string) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -36,7 +39,7 @@ export function useApp() {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [view, setView] = useState<AppView>("copilot");
+  const [view, setView] = useState<AppView>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentCustomer, setCurrentCustomer] = useState<Customer>(mockCustomers[0]);
   const [conversations, setConversations] = useState<Conversation[]>(defaultConversations);
@@ -46,8 +49,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeClaimId, setActiveClaimId] = useState<string | null>("CLM-20481");
   const [claimViewMode, setClaimViewMode] = useState<ClaimViewMode>("list");
   const [insights, setInsights] = useState<AIInsight[]>(getInsightsForCustomer("cust-001"));
+  const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
   const conversationsRef = useRef(conversations);
-  conversationsRef.current = conversations;
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const selectCustomer = useCallback((customer: Customer) => {
     setCurrentCustomer(customer);
@@ -73,9 +79,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (conv) { setCurrentConversation(conv); setView("copilot"); }
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, attachment?: { id: string, name: string, type: string, size: number }) => {
     if (!currentCustomer) return;
-    const userMessage: ConversationMessage = { id: `msg-${Date.now()}`, role: "user", content, timestamp: new Date().toISOString() };
+    const userMessage: ConversationMessage = { id: `msg-${Date.now()}`, role: "user", content, timestamp: new Date().toISOString(), attachments: attachment ? [attachment] : undefined };
     let activeConv = currentConversation;
     if (!activeConv) {
       const newConv: Conversation = { id: `conv-${Date.now()}`, title: content.slice(0, 50) + (content.length > 50 ? "..." : ""), customerId: currentCustomer.id, messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), activeClaimId: activeClaimId || undefined };
@@ -104,5 +110,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getMemoriesForCustomer = useCallback((customerId: string) => memories.filter((m) => m.customerId === customerId), [memories]);
 
-  return <AppContext.Provider value={{ view, setView, sidebarOpen, setSidebarOpen, currentCustomer, selectCustomer, conversations, currentConversation, createConversation, selectConversation, sendMessage, isProcessing, memories, getMemoriesForCustomer, activeClaimId, setActiveClaimId, claimViewMode, setClaimViewMode, insights }}>{children}</AppContext.Provider>;
+  const saveAnalysis = useCallback((analysis: Omit<SavedAnalysis, "id" | "createdAt">) => {
+    const newAnalysis: SavedAnalysis = {
+      ...analysis,
+      id: `analysis-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setSavedAnalyses((prev) => [newAnalysis, ...prev]);
+  }, []);
+
+  const deleteAnalysis = useCallback((id: string) => {
+    setSavedAnalyses((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  return <AppContext.Provider value={{ view, setView, sidebarOpen, setSidebarOpen, currentCustomer, selectCustomer, conversations, currentConversation, createConversation, selectConversation, sendMessage, isProcessing, memories, getMemoriesForCustomer, activeClaimId, setActiveClaimId, claimViewMode, setClaimViewMode, insights, savedAnalyses, saveAnalysis, deleteAnalysis }}>{children}</AppContext.Provider>;
 }
+

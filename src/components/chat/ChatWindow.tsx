@@ -52,12 +52,6 @@ export function ChatWindow() {
                 {activeClaimId}
               </span>
             )}
-            <button
-              onClick={() => setView("copilot")}
-              className="btn btn-sm !text-muted-foreground"
-            >
-              ≡
-            </button>
           </div>
         </div>
       </div>

@@ -96,6 +96,12 @@ export interface ConversationMessage {
   toolCalls?: ToolCall[];
   referencedClaimId?: string;
   referencedPolicyId?: string;
+  attachments?: {
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+  }[];
 }
 
 export interface Conversation {
@@ -120,7 +126,21 @@ export interface MemoryEntry {
 }
 
 // --- App State ---
-export type AppView = "copilot" | "claims" | "policies" | "customers" | "support";
+export type AppView =
+  | "dashboard"
+  | "claims-policies"
+  | "documents"
+  | "copilot"
+  | "compare"
+  | "timeline"
+  | "saved"
+  | "settings"
+  // legacy aliases kept for backward-compat with existing code
+  | "claims"
+  | "policies"
+  | "ai-insights"
+  | "support";
+
 export type ClaimViewMode = "list" | "detail";
 
 export interface AIInsight {
@@ -128,6 +148,27 @@ export interface AIInsight {
   type: "warning" | "info" | "action" | "success";
   title: string;
   description: string;
+}
+
+// --- Saved Analysis ---
+export type AnalysisType =
+  | "policy-analysis"
+  | "claim-analysis"
+  | "coverage-assessment"
+  | "policy-vs-claim"
+  | "document-comparison"
+  | "discrepancy-report"
+  | "ai-summary";
+
+export interface SavedAnalysis {
+  id: string;
+  name: string;
+  type: AnalysisType;
+  createdAt: string;
+  documents: string[];
+  summary: string;
+  confidence: number; // 0-100
+  content: string;    // full analysis text
 }
 
 // --- Support Resources ---
@@ -146,3 +187,4 @@ export interface KnowledgeBaseEntry {
   category: string;
   content: string;
 }
+

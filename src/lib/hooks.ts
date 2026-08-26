@@ -21,6 +21,7 @@ export function useTime() {
 
 export function useIsClient() {
   const [isClient, setIsClient] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setIsClient(true), []);
   return isClient;
 }
