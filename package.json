@@ -10,9 +10,10 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.31",
+    "ai": "^7.0.79",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
-    "ai": "^7.0.79",
+    "better-auth": "^1.7.1",
     "canvas": "^3.2.3",
     "next": "16.3.2",
     "pdf-lib": "^1.17.1",
@@ -25,7 +26,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

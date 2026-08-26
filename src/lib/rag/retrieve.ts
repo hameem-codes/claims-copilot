@@ -34,14 +34,23 @@ export async function retrieveChunks(
   const isUUID = (str: string | undefined | null) => 
     str && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
 
-  const { data, error } = await supabase.rpc("match_document_chunks", {
+  interface MatchedChunk {
+    chunk_id: string;
+    document_id: string;
+    chunk_index: number;
+    content: string;
+    similarity: number;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)("match_document_chunks", {
     query_embedding: queryEmbedding,
     match_count: options?.topK || 5,
     filter_document_id: isUUID(options?.documentId) ? options!.documentId : null,
     filter_claim_id: isUUID(options?.claimId) ? options!.claimId : null,
     filter_policy_id: isUUID(options?.policyId) ? options!.policyId : null,
   });
-  let chunks = data;
+  let chunks: MatchedChunk[] = (data as MatchedChunk[]) || [];
 
   if (error) {
     console.error("RPC match_document_chunks failed:", error);
@@ -56,13 +65,13 @@ export async function retrieveChunks(
       .select("id, document_id, chunk_index, content")
       .limit(options?.topK || 5);
       
-    if (isUUID(options?.documentId)) query.eq("document_id", options!.documentId);
+    if (isUUID(options?.documentId)) query.eq("document_id", options!.documentId as string);
     
     // We must join with documents to ensure RLS / ownership, but we can't easily join on select in supabase-js
     // without returning the joined object.
     const fallbackRes = await query;
     if (fallbackRes.data && fallbackRes.data.length > 0) {
-      chunks = fallbackRes.data.map(c => ({
+      chunks = (fallbackRes.data as Array<{ id: string; document_id: string; chunk_index: number; content: string }>).map((c) => ({
         chunk_id: c.id,
         document_id: c.document_id,
         chunk_index: c.chunk_index,
@@ -85,7 +94,7 @@ export async function retrieveChunks(
 
   const filenameMap = new Map<string, string>();
   if (docsData) {
-    docsData.forEach((d) => {
+    (docsData as Array<{ id: string; original_filename?: string | null }>).forEach((d) => {
       if (d.original_filename) {
         filenameMap.set(d.id, d.original_filename);
       }

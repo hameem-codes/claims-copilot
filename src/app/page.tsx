@@ -3,67 +3,45 @@
 import { useApp } from "@/context/AppContext";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { ChatWindow } from "@/components/chat/ChatWindow";
-import { ContextPanel } from "@/components/panel/ContextPanel";
-import { ClaimsView } from "@/components/claims/ClaimsView";
-import { PolicyView } from "@/components/claims/PolicyView";
-import { SupportView } from "@/components/claims/SupportView";
-import { CustomersView } from "@/components/claims/CustomersView";
+import { DocumentsView } from "@/components/documents/DocumentsView";
+import { DashboardView } from "@/components/dashboard/DashboardView";
+import { ClaimsPoliciesView } from "@/components/claims/ClaimsPoliciesView";
+import { CompareView } from "@/components/compare/CompareView";
+import { TimelineView } from "@/components/timeline/TimelineView";
+import { SavedAnalysesView } from "@/components/saved/SavedAnalysesView";
+import { SettingsView } from "@/components/settings/SettingsView";
 
 export default function Home() {
   const { view, sidebarOpen, setSidebarOpen } = useApp();
 
   const renderMainContent = () => {
     switch (view) {
-      case "claims":
-        return <ClaimsView />;
-      case "policies":
-        return <PolicyView />;
-      case "support":
-        return <SupportView />;
-      case "customers":
-        return <CustomersView />;
-      case "copilot":
-      default:
-        return <ChatWindow />;
+      case "dashboard":       return <DashboardView />;
+      case "claims-policies": return <ClaimsPoliciesView />;
+      case "claims":          return <ClaimsPoliciesView />;
+      case "policies":        return <ClaimsPoliciesView />;
+      case "documents":       return <DocumentsView />;
+      case "copilot":         return <ChatWindow />;
+      case "compare":         return <CompareView />;
+      case "timeline":        return <TimelineView />;
+      case "saved":           return <SavedAnalysesView />;
+      case "settings":        return <SettingsView />;
+      // legacy fallbacks
+      case "ai-insights":     return <DashboardView />;
+      case "support":         return <SettingsView />;
+      default:                return <ChatWindow />;
     }
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="md:hidden fixed top-3 left-3 z-50 btn btn-sm !rounded-[var(--radius-sm)]"
-      >
-        {sidebarOpen ? "✕" : "☰"}
-      </button>
-
-      {/* Sidebar */}
-      <div
-        className={`${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        } fixed md:relative z-40 h-full transition-transform duration-200`}
-      >
-        <Sidebar />
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
+      <div className={`fixed inset-y-0 left-0 z-40 h-[100dvh] transition-[width,min-width] duration-200 ease-out md:relative ${sidebarOpen ? "w-[280px] min-w-[280px]" : "w-[76px] min-w-[76px] overflow-hidden"} bg-card border-r-2 border-foreground`}>
+        <div className="w-[280px] h-full">
+          <Sidebar />
+        </div>
       </div>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/20 z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <main className="flex-1 h-full overflow-hidden">
-        {renderMainContent()}
-      </main>
-
-      {/* Context Panel — desktop only */}
-      <div className="hidden lg:block h-full">
-        <ContextPanel />
-      </div>
+      {sidebarOpen && <button type="button" aria-label="Close navigation overlay" className="md:hidden fixed inset-0 z-30 cursor-default bg-black/20" onClick={() => setSidebarOpen(false)} />}
+      <main className="min-w-0 flex-1 h-[100dvh] overflow-hidden">{renderMainContent()}</main>
     </div>
   );
 }

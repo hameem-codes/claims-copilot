@@ -112,26 +112,25 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
         />
 
-        {/* Evidence Confidence & Sources */}
-        {!isUser && message.confidence && (
-          <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${
-                message.confidence === "high" ? "bg-green-500" :
-                message.confidence === "medium" ? "bg-yellow-500" :
-                "bg-red-500"
-              }`} />
-              <span className="font-mono uppercase text-[0.65rem] tracking-wider text-muted-foreground">
-                {message.confidence} Confidence
-              </span>
-            </div>
-            {message.sources && message.sources.length > 0 && (
-              <div className="text-[0.65rem] font-mono text-muted-foreground truncate max-w-[150px]">
-                {message.sources.length} source(s)
+        {/* Attachments */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mt-3 flex flex-col gap-2">
+            {message.attachments.map((att) => (
+              <div key={att.id} className={`flex items-center gap-2 p-2 rounded-[var(--radius-sm)] border-2 ${isUser ? "bg-accent/80 border-white/30 text-white" : "bg-muted/50 border-foreground text-foreground"}`}>
+                <span className="text-xl">📄</span>
+                <div className="flex flex-col">
+                  <a href={`/api/documents/${att.id}`} target="_blank" rel="noopener noreferrer" className="font-medium text-sm hover:underline truncate max-w-[200px]">
+                    {att.name}
+                  </a>
+                  <span className={`text-[0.65rem] font-mono ${isUser ? "text-white/80" : "text-muted-foreground"}`}>
+                    {Math.round(att.size / 1024)} KB
+                  </span>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         )}
+
 
         {/* Timestamp */}
         <div className={`mt-2 text-[0.6rem] font-mono ${isUser ? "text-white/60" : "text-muted-foreground"}`}>
