@@ -38,7 +38,7 @@ export function useApp() {
 }
 
 export function AppProvider({ children, user }: { children: ReactNode; user?: import("@supabase/supabase-js").User | null }) {
-  const initialCustomer: Customer = user ? {
+  const initialCustomer: Customer | null = user ? {
     id: user.id,
     name: user.email?.split("@")[0] || "User",
     email: user.email || "",
@@ -46,11 +46,11 @@ export function AppProvider({ children, user }: { children: ReactNode; user?: im
     customerSince: new Date().getFullYear().toString(),
     preferredContact: "email",
     avatarColor: "bg-blue-500",
-  } : mockCustomers[0];
+  } : null;
 
   const [view, setView] = useState<AppView>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentCustomer, setCurrentCustomer] = useState<Customer>(initialCustomer);
+  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(initialCustomer);
   const [conversations, setConversations] = useState<Conversation[]>(defaultConversations);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(defaultConversations[0]);
   const [memories] = useState<MemoryEntry[]>(defaultMemories);
@@ -77,6 +77,7 @@ export function AppProvider({ children, user }: { children: ReactNode; user?: im
   }, []);
 
   const createConversation = useCallback(() => {
+    if (!currentCustomer) return;
     const newConv: Conversation = { id: `conv-${Date.now()}`, title: "New conversation", customerId: currentCustomer.id, messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     setConversations((prev) => [newConv, ...prev]);
     setCurrentConversation(newConv);
