@@ -42,11 +42,10 @@ async function testUploadFull() {
 
   // 2. Extract text
   const fileBuffer = fs.readFileSync("test.pdf");
-  const { PDFParse } = await import("pdf-parse");
-  const parser = new PDFParse({ data: fileBuffer });
-  const parsed = await parser.getText();
-  await parser.destroy();
-  let extractedText = parsed.text;
+  const { extractText, getDocumentProxy } = await import("unpdf");
+  const pdf = await getDocumentProxy(new Uint8Array(fileBuffer));
+  const { text } = await extractText(pdf, { mergePages: true });
+  let extractedText = Array.isArray(text) ? text.join("\n") : text;
   
   extractedText = extractedText.trim();
   if (!extractedText) {

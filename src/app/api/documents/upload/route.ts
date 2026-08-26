@@ -8,25 +8,7 @@ import { embedText } from "@/lib/rag/embed";
 import Tesseract from "tesseract.js";
 import { Buffer } from "buffer";
 
-// Minimal DOMMatrix polyfill for pdf-parse/pdfjs-dist in Node.js
-if (typeof globalThis.DOMMatrix === "undefined") {
-  class DOMMatrixPolyfill {
-    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
-    constructor(init?: number[]) {
-      if (init && init.length >= 6) {
-        [this.a, this.b, this.c, this.d, this.e, this.f] = init;
-      }
-    }
-    static fromMatrix() { return new DOMMatrixPolyfill(); }
-    translate() { return this; }
-    scale() { return this; }
-    multiply() { return this; }
-    inverse() { return this; }
-    toString() { return "matrix(1, 0, 0, 1, 0, 0)"; }
-  }
-  // @ts-expect-error polyfill for Node runtime
-  globalThis.DOMMatrix = DOMMatrixPolyfill;
-}
+
 
 // Note: Next.js API route configuration
 export const maxDuration = 300; // 5 minutes (max for Vercel Pro, ignored on standard free tier but good practice for OCR)
@@ -115,11 +97,10 @@ export async function POST(req: NextRequest) {
     let extractedText = "";
 
     if (file.type === "application/pdf") {
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: Buffer.from(fileBuffer) });
-      const parsed = await parser.getText();
-      await parser.destroy();
-      extractedText = parsed.text;
+      const { extractText, getDocumentProxy } = await import("unpdf");
+      const pdf = await getDocumentProxy(new Uint8Array(fileBuffer));
+      const { text } = await extractText(pdf, { mergePages: true });
+      extractedText = Array.isArray(text) ? text.join("\n") : text;
     } else {
       // Direct image OCR for PNG/JPEG
       const { data: { text } } = await Tesseract.recognize(Buffer.from(fileBuffer), "eng");
