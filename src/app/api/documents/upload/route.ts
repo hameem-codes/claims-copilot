@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (uploadError) {
-      throw new Error(`Storage upload failed: ${uploadError.message}`);
+      throw new Error(`Storage upload failed (check if 'documents' bucket exists and permissions are correct): ${uploadError.message}`);
     }
 
     // 6. Insert a row into documents
@@ -164,10 +164,8 @@ export async function POST(req: NextRequest) {
     // 14. Global try/catch error handling
     console.error("[upload] Unhandled error:", error);
     
-    // Debug logging to see exactly why it's failing
-    const fs = await import("fs");
     const err = error instanceof Error ? error : new Error(String(error));
-    fs.writeFileSync("upload-error.txt", err.stack || err.message || String(err));
+    console.error("[upload] Upload error stack:", err.stack || err.message);
 
     if (documentId) {
       // Attempt to mark as failed if it was already created
