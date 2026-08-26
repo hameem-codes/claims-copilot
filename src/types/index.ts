@@ -192,6 +192,7 @@ export interface AnalysisSession {
   policy_extracted_data?: Record<string, unknown> | null;
   claim_extracted_data?: Record<string, unknown> | null;
   comparison_data?: Record<string, unknown> | null;
+  discrepancy_data?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -286,4 +287,23 @@ export const ComparisonSchema = z.object({
     chunk_index: z.number().describe("The chunk index of the source."),
     context_snippet: z.string().describe("A brief exact quote proving the conclusion.")
   })).describe("Sources that support material conclusions.")
+});
+
+export const DiscrepancySchema = z.object({
+  discrepancies: z.array(z.object({
+    type: z.enum(["Amounts", "Dates", "Coverage", "Claim Details", "Missing Evidence"]).describe("The category of the discrepancy."),
+    severity: z.enum(["low", "medium", "high"]).describe("The severity of the discrepancy."),
+    title: z.string().describe("A brief title for the discrepancy."),
+    description: z.string().describe("A clear description of the discrepancy."),
+    policy_value: z.string().nullable().describe("The value or clause stated in the policy."),
+    claim_value: z.string().nullable().describe("The value or statement from the claim."),
+    explanation: z.string().describe("Explanation of why this is a discrepancy or potential issue."),
+    confidence: z.number().min(0).max(100).describe("Confidence score of this finding from 0 to 100."),
+    sources: z.array(z.object({
+      document_id: z.string().describe("The document ID of the source."),
+      document_type: z.enum(["policy", "claim"]).describe("The type of document."),
+      chunk_index: z.number().describe("The chunk index of the source."),
+      context_snippet: z.string().describe("A brief exact quote proving the conclusion.")
+    })).describe("Sources supporting this discrepancy.")
+  })).describe("List of discrepancies detected between the policy and claim.")
 });
