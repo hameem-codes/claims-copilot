@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import type { AppView } from "@/types";
-import { signOut } from "@/lib/auth-client";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 const navItems: { id: AppView; label: string; icon: string }[] = [
   { id: "dashboard",      label: "Dashboard",        icon: "◈" },
@@ -30,6 +31,7 @@ export function Sidebar() {
     setSidebarOpen,
   } = useApp();
 
+  const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const customerConversations = conversations.filter(
@@ -155,13 +157,14 @@ export function Sidebar() {
                 type="button"
                 onClick={async () => {
                   try {
-                    await signOut();
-                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                    window.location.href = "/login";
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    router.push("/login");
+                    router.refresh();
                   } catch (err) {
                     console.error("Sign out failed:", err);
-                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                    window.location.href = "/login";
+                    router.push("/login");
+                    router.refresh();
                   }
                 }}
                 className="mt-2 btn btn-primary w-full !py-2 text-xs !min-h-0"

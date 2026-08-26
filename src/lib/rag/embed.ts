@@ -18,7 +18,7 @@ export async function embedText(text: string): Promise<number[]> {
 
   const maxRetries = 3;
   const backoffDelays = [1000, 2000, 4000];
-  let lastError: any = null;
+  let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -50,7 +50,7 @@ export async function embedText(text: string): Promise<number[]> {
 
       return flatResult as number[];
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
 
       if (attempt < maxRetries) {
@@ -61,5 +61,6 @@ export async function embedText(text: string): Promise<number[]> {
   }
 
   // If all attempts fail, throw a specific error message
-  throw new Error(`Embedding failed after 3 retries: ${lastError?.message || lastError}`);
+  const errMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`Embedding failed after 3 retries: ${errMessage}`);
 }

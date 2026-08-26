@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 import { embedText } from "@/lib/rag/embed";
 import Tesseract from "tesseract.js";
@@ -11,12 +10,14 @@ export const maxDuration = 300; // 5 minutes (max for Vercel Pro, ignored on sta
 
 export async function POST(req: NextRequest) {
   let documentId: string | null = null;
-  
-  // Admin client for overriding RLS during server-side insertions/uploads
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  let adminClient: ReturnType<typeof createAdminClient> | null = null;
+
+  try {
+    adminClient = createAdminClient();
+  } catch (e) {
+    console.error("[upload] Supabase admin client initialization failed:", e);
+    return NextResponse.json({ error: "Storage configuration error" }, { status: 500 });
+  }
 
   try {
     // 1. Accept multipart/form-data
@@ -37,35 +38,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Get authenticated user
-    const cookieStore = await cookies();
-    const authClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options);
-              });
-            } catch (error) {
-              // Ignore in route handlers
-            }
-          },
-        },
-      }
-    );
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
 
-    console.log("--- AUTH DEBUG ---");
-    console.log("Raw Cookies:", cookieStore.getAll());
-    const authResult = await authClient.auth.getUser();
-    console.log("getUser() result:", JSON.stringify(authResult, null, 2));
-    console.log("------------------");
-
-    const { data: { user } } = authResult;
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -111,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     if (file.type === "application/pdf") {
       const pdfParseMod = await import("pdf-parse");
-      const pdfParse = (pdfParseMod as any).default || pdfParseMod;
+      const pdfParse = ((pdfParseMod as { default?: (buf: Buffer) => Promise<{ text: string }> }).default || pdfParseMod) as (buf: Buffer) => Promise<{ text: string }>;
       const parsed = await pdfParse(Buffer.from(fileBuffer));
       extractedText = parsed.text;
     } else {
@@ -173,11 +148,11 @@ export async function POST(req: NextRequest) {
     // 13. Return success
     return NextResponse.json({ documentId, chunksCreated: chunks.length, ocrStatus: "complete" }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 14. Global try/catch error handling
     console.error("[upload] Unhandled error:", error);
     
-    if (documentId) {
+    if (documentId && adminClient) {
       // Attempt to mark as failed if it was already created
       try {
         await adminClient.from("documents").update({ ocr_status: "failed" }).eq("id", documentId);

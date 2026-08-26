@@ -1,6 +1,7 @@
-import fs from "fs";
-import path from "path";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { claims } from "@/data/mock-data";
+import { randomUUID } from "crypto";
 
 export interface DocumentInfo {
   id: string;
@@ -17,55 +18,115 @@ export interface DocumentInfo {
   isPinned?: boolean;
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-const METADATA_FILE = path.join(DATA_DIR, "documents.json");
+// In-memory fallback if Supabase is unconfigured in development
+const inMemoryDocs: DocumentInfo[] = [];
+const inMemoryFiles: Map<string, { buffer: Buffer; type: string }> = new Map();
 
-function ensureDirs() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(METADATA_FILE)) {
-    fs.writeFileSync(METADATA_FILE, JSON.stringify([], null, 2), "utf-8");
+function getAdminOrNull() {
+  try {
+    return createAdminClient();
+  } catch {
+    return null;
   }
 }
 
 export async function listDocuments(customerId?: string | null): Promise<DocumentInfo[]> {
-  ensureDirs();
   try {
-    const data = await fs.promises.readFile(METADATA_FILE, "utf-8");
-    const docs: DocumentInfo[] = JSON.parse(data);
-    if (customerId) {
-      const customerClaimIds = claims
-        .filter(c => c.customerId === customerId)
-        .map(c => c.id);
-
-      return docs.filter(
-        d =>
-          d.customerId === customerId ||
-          (d.claimId && customerClaimIds.includes(d.claimId))
-      );
+    const admin = getAdminOrNull();
+    if (admin) {
+      let query = admin.from("documents").select("*").order("created_at", { ascending: false });
+      if (customerId) {
+        const customerClaimIds = claims
+          .filter((c) => c.customerId === customerId)
+          .map((c) => c.id);
+        
+        query = query.or(
+          `user_id.eq.${customerId},claim_id.in.(${customerClaimIds.length > 0 ? customerClaimIds.join(",") : "none"})`
+        );
+      }
+      const { data, error } = await query;
+      if (!error && data) {
+        return data.map((d: Record<string, unknown>) => ({
+          id: String(d.id),
+          documentId: String(d.id),
+          name: String(d.original_filename || d.name || "Untitled"),
+          type: String(d.file_type || (String(d.original_filename || "").endsWith(".pdf") ? "application/pdf" : "image/jpeg")),
+          size: typeof d.size === "number" ? d.size : 0,
+          uploadDate: String(d.created_at || new Date().toISOString()),
+          uploadedAt: String(d.created_at || new Date().toISOString()),
+          claimId: (d.claim_id as string) || null,
+          projectId: (d.policy_id as string) || (d.project_id as string) || null,
+          customerId: (d.user_id as string) || null,
+          filePath: (d.storage_path as string) || "",
+          isPinned: Boolean(d.is_pinned),
+        }));
+      }
     }
-    return docs;
-  } catch (error) {
-    console.error("Error reading documents metadata:", error);
-    return [];
+  } catch (err) {
+    console.warn("Supabase listDocuments fallback:", err);
   }
+
+  // Fallback
+  if (customerId) {
+    const customerClaimIds = claims
+      .filter((c) => c.customerId === customerId)
+      .map((c) => c.id);
+
+    return inMemoryDocs.filter(
+      (d) =>
+        d.customerId === customerId ||
+        (d.claimId && customerClaimIds.includes(d.claimId))
+    );
+  }
+  return inMemoryDocs;
 }
 
 export async function getDocument(id: string): Promise<DocumentInfo | null> {
-  ensureDirs();
   try {
-    const data = await fs.promises.readFile(METADATA_FILE, "utf-8");
-    const docs: DocumentInfo[] = JSON.parse(data);
-    return docs.find(d => d.id === id) || null;
-  } catch (error) {
-    console.error("Error getting document:", error);
-    return null;
+    const admin = getAdminOrNull();
+    if (admin) {
+      const { data, error } = await admin.from("documents").select("*").eq("id", id).single();
+      if (!error && data) {
+        return {
+          id: String(data.id),
+          documentId: String(data.id),
+          name: String(data.original_filename || data.name || "Untitled"),
+          type: String(data.file_type || (String(data.original_filename || "").endsWith(".pdf") ? "application/pdf" : "image/jpeg")),
+          size: typeof data.size === "number" ? data.size : 0,
+          uploadDate: String(data.created_at || new Date().toISOString()),
+          uploadedAt: String(data.created_at || new Date().toISOString()),
+          claimId: (data.claim_id as string) || null,
+          projectId: (data.policy_id as string) || (data.project_id as string) || null,
+          customerId: (data.user_id as string) || null,
+          filePath: (data.storage_path as string) || "",
+          isPinned: Boolean(data.is_pinned),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Supabase getDocument fallback:", err);
   }
+
+  return inMemoryDocs.find((d) => d.id === id) || null;
+}
+
+export async function getDocumentFileBuffer(doc: DocumentInfo): Promise<{ buffer: Buffer; type: string } | null> {
+  try {
+    const admin = getAdminOrNull();
+    if (admin && doc.filePath) {
+      const { data, error } = await admin.storage.from("documents").download(doc.filePath);
+      if (!error && data) {
+        const arrayBuf = await data.arrayBuffer();
+        return { buffer: Buffer.from(arrayBuf), type: doc.type };
+      }
+    }
+  } catch (err) {
+    console.warn("Supabase getDocumentFileBuffer fallback:", err);
+  }
+
+  const inMem = inMemoryFiles.get(doc.id);
+  if (inMem) return inMem;
+  return null;
 }
 
 export async function saveDocument(
@@ -75,17 +136,62 @@ export async function saveDocument(
   size: number,
   association?: { claimId?: string | null; projectId?: string | null }
 ): Promise<DocumentInfo> {
-  ensureDirs();
-  const id = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-  const ext = path.extname(name) || ".bin";
-  const fileName = `${id}${ext}`;
-  const filePath = path.join(UPLOADS_DIR, fileName);
-
-  // Write file to disk
-  await fs.promises.writeFile(filePath, fileBuffer);
-
+  const id = randomUUID();
   const isoString = new Date().toISOString();
-  const newDoc: DocumentInfo = {
+  const storagePath = `uploads/${id}-${name}`;
+
+  try {
+    const serverSupabase = await createClient();
+    const { data: { user } } = await serverSupabase.auth.getUser();
+    const userId = user?.id || null;
+
+    const admin = getAdminOrNull();
+    if (admin) {
+      // 1. Upload to Supabase Storage
+      const { error: uploadErr } = await admin.storage.from("documents").upload(storagePath, fileBuffer, {
+        contentType: type,
+        upsert: true,
+      });
+
+      if (!uploadErr) {
+        // 2. Insert into documents table
+        const { data: docRow, error: insertErr } = await admin
+          .from("documents")
+          .insert({
+            id,
+            storage_path: storagePath,
+            original_filename: name,
+            user_id: userId,
+            claim_id: association?.claimId || null,
+            policy_id: association?.projectId || null,
+            ocr_status: "complete",
+          })
+          .select()
+          .single();
+
+        if (!insertErr && docRow) {
+          return {
+            id: String(docRow.id),
+            documentId: String(docRow.id),
+            name,
+            type,
+            size,
+            uploadDate: isoString,
+            uploadedAt: isoString,
+            claimId: association?.claimId || null,
+            projectId: association?.projectId || null,
+            customerId: userId,
+            filePath: storagePath,
+            isPinned: false,
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Supabase saveDocument fallback:", err);
+  }
+
+  const fallbackDoc: DocumentInfo = {
     id,
     documentId: id,
     name,
@@ -96,59 +202,73 @@ export async function saveDocument(
     claimId: association?.claimId || null,
     projectId: association?.projectId || null,
     customerId: null,
-    filePath: path.relative(process.cwd(), filePath),
+    filePath: storagePath,
+    isPinned: false,
   };
 
-  try {
-    const data = await fs.promises.readFile(METADATA_FILE, "utf-8");
-    const docs: DocumentInfo[] = JSON.parse(data);
-    docs.push(newDoc);
-    await fs.promises.writeFile(METADATA_FILE, JSON.stringify(docs, null, 2), "utf-8");
-  } catch (error) {
-    console.error("Error saving document metadata:", error);
-  }
-
-  return newDoc;
+  inMemoryDocs.unshift(fallbackDoc);
+  inMemoryFiles.set(id, { buffer: fileBuffer, type });
+  return fallbackDoc;
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
-  ensureDirs();
   try {
-    const data = await fs.promises.readFile(METADATA_FILE, "utf-8");
-    const docs: DocumentInfo[] = JSON.parse(data);
-    const docIndex = docs.findIndex(d => d.id === id);
-    if (docIndex === -1) return false;
-
-    const doc = docs[docIndex];
-    const fullPath = path.join(process.cwd(), "data", "uploads", path.basename(doc.filePath));
-
-    if (fs.existsSync(fullPath)) {
-      await fs.promises.unlink(fullPath);
+    const admin = getAdminOrNull();
+    if (admin) {
+      const doc = await getDocument(id);
+      if (doc?.filePath) {
+        await admin.storage.from("documents").remove([doc.filePath]);
+      }
+      const { error } = await admin.from("documents").delete().eq("id", id);
+      if (!error) return true;
     }
-
-    docs.splice(docIndex, 1);
-    await fs.promises.writeFile(METADATA_FILE, JSON.stringify(docs, null, 2), "utf-8");
-    return true;
-  } catch (error) {
-    console.error("Error deleting document:", error);
-    return false;
+  } catch (err) {
+    console.warn("Supabase deleteDocument fallback:", err);
   }
+
+  const idx = inMemoryDocs.findIndex((d) => d.id === id);
+  if (idx !== -1) {
+    inMemoryDocs.splice(idx, 1);
+    inMemoryFiles.delete(id);
+    return true;
+  }
+  return false;
 }
 
 export async function updateDocument(id: string, updates: Partial<DocumentInfo>): Promise<DocumentInfo | null> {
-  ensureDirs();
   try {
-    const data = await fs.promises.readFile(METADATA_FILE, "utf-8");
-    const docs: DocumentInfo[] = JSON.parse(data);
-    const docIndex = docs.findIndex(d => d.id === id);
-    if (docIndex === -1) return null;
+    const admin = getAdminOrNull();
+    if (admin) {
+      const dbUpdates: Record<string, unknown> = {};
+      if (updates.isPinned !== undefined) dbUpdates.is_pinned = updates.isPinned;
+      if (updates.name !== undefined) dbUpdates.original_filename = updates.name;
 
-    docs[docIndex] = { ...docs[docIndex], ...updates };
-    await fs.promises.writeFile(METADATA_FILE, JSON.stringify(docs, null, 2), "utf-8");
-    return docs[docIndex];
-  } catch (error) {
-    console.error("Error updating document:", error);
-    return null;
+      const { data, error } = await admin.from("documents").update(dbUpdates).eq("id", id).select().single();
+      if (!error && data) {
+        return {
+          id: String(data.id),
+          documentId: String(data.id),
+          name: String(data.original_filename || data.name || updates.name || "Untitled"),
+          type: String(data.file_type || (String(data.original_filename || "").endsWith(".pdf") ? "application/pdf" : "image/jpeg")),
+          size: typeof data.size === "number" ? data.size : 0,
+          uploadDate: String(data.created_at || new Date().toISOString()),
+          uploadedAt: String(data.created_at || new Date().toISOString()),
+          claimId: (data.claim_id as string) || null,
+          projectId: (data.policy_id as string) || (data.project_id as string) || null,
+          customerId: (data.user_id as string) || null,
+          filePath: (data.storage_path as string) || "",
+          isPinned: Boolean(data.is_pinned),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Supabase updateDocument fallback:", err);
   }
-}
 
+  const idx = inMemoryDocs.findIndex((d) => d.id === id);
+  if (idx !== -1) {
+    inMemoryDocs[idx] = { ...inMemoryDocs[idx], ...updates };
+    return inMemoryDocs[idx];
+  }
+  return null;
+}

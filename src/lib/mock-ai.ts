@@ -69,11 +69,11 @@ function statusLabel(status: string): string {
 }
 
 // --- Response generators ---
-function generateClaimStatusResponse(claim: Claim, policy: Policy): string {
+function generateClaimStatusResponse(claim: Claim, policy?: Policy): string {
   return `**CLAIM STATUS — ${claim.id}**
 
 **Status:** ${statusLabel(claim.status)}
-**Type:** ${claim.type}
+**Type:** ${claim.type}${policy ? `\n**Policy:** ${policy.id} (${policy.typeName})` : ""}
 **Amount:** ${formatMoney(claim.amount)}
 **Adjuster:** ${claim.adjuster}
 **Submitted:** ${claim.submittedDate}
