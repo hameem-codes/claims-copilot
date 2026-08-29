@@ -38,7 +38,7 @@ async function main() {
   const email = "test@example.com";
   const password = "hameem";
   
-  const loginRes = await fetch("http://localhost:3000/api/test-login", {
+  const loginRes = await fetch("http://localhost:3001/api/test-login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
@@ -57,7 +57,7 @@ async function main() {
   // 3. Create Analysis Session (or reuse recent)
   const { data: sessionInsert, error: sessionErr } = await adminClient
     .from("analysis_sessions")
-    .insert({ user_id: userId })
+    .insert({ user_id: userId, title: "Test Session" })
     .select("id")
     .single();
     
@@ -72,7 +72,7 @@ async function main() {
   policyFormData.append("analysis_session_id", sessionId);
   policyFormData.append("document_type", "policy");
 
-  const policyUpRes = await fetch("http://localhost:3000/api/documents/upload", {
+  const policyUpRes = await fetch("http://localhost:3001/api/documents/upload", {
     method: "POST",
     headers: { ...authHeaders, ...policyFormData.getHeaders() },
     body: policyFormData
@@ -86,7 +86,7 @@ async function main() {
   claimFormData.append("analysis_session_id", sessionId);
   claimFormData.append("document_type", "claim");
 
-  const claimUpRes = await fetch("http://localhost:3000/api/documents/upload", {
+  const claimUpRes = await fetch("http://localhost:3001/api/documents/upload", {
     method: "POST",
     headers: { ...authHeaders, ...claimFormData.getHeaders() },
     body: claimFormData
@@ -96,7 +96,7 @@ async function main() {
 
   // 6. Verify DB
   const { data: dbDocs } = await adminClient.from("documents").select("*").in("id", [policyUpData.documentId, claimUpData.documentId]);
-  report.push(`Documents DB Rows: ${JSON.stringify(dbDocs?.map(d => ({ id: d.id, size: d.file_size, type: d.file_type, doc_type: d.document_type })))}`);
+  report.push(`Documents DB Rows: ${JSON.stringify(dbDocs?.map(d => ({ id: d.id, size: d.size, type: d.file_type, doc_type: d.document_type })))}`);
 
   const { data: dbChunks } = await adminClient.from("document_chunks").select("id, document_id, content").in("document_id", [policyUpData.documentId, claimUpData.documentId]);
   report.push(`Chunks Created: ${dbChunks?.length}`);
@@ -106,7 +106,7 @@ async function main() {
 
   // 7. RAG Tests
   const ask = async (q: string) => {
-    const chatRes = await fetch("http://localhost:3000/api/chat", {
+    const chatRes = await fetch("http://localhost:3001/api/chat", {
       method: "POST",
       headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -128,11 +128,11 @@ async function main() {
 
   // 8. Regression Tests (Extraction, Compare, etc.)
   report.push("\n--- Regression Tests ---");
-  const extRes = await fetch(`http://localhost:3000/api/analysis-sessions/${sessionId}/extract?regenerate=true`, { method: "POST", headers: authHeaders });
+  const extRes = await fetch(`http://localhost:3001/api/analysis-sessions/${sessionId}/extract?regenerate=true`, { method: "POST", headers: authHeaders });
   report.push(`Extraction: ${extRes.status}`);
 
   await sleep(4000);
-  const compRes = await fetch(`http://localhost:3000/api/analysis-sessions/${sessionId}/compare?regenerate=true`, { method: "POST", headers: authHeaders });
+  const compRes = await fetch(`http://localhost:3001/api/analysis-sessions/${sessionId}/compare?regenerate=true`, { method: "POST", headers: authHeaders });
   report.push(`Compare: ${compRes.status}`);
 
   // Write report

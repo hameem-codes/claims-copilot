@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       .insert({
         storage_path: storagePath,
         original_filename: originalFilename,
-        file_size: file.size,
+        size: file.size,
         file_type: file.type,
         user_id: userId,
         claim_id: claimId || null,
@@ -118,8 +118,9 @@ export async function POST(req: NextRequest) {
 
     if (file.type === "application/pdf") {
       const pdfParseModule = (await import("pdf-parse")) as any;
-      const pdfParse = pdfParseModule.default || pdfParseModule;
-      const pdfData = await pdfParse(Buffer.from(fileBuffer));
+      const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse;
+      const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
+      const pdfData = await parser.getText();
       extractedText = pdfData.text;
     } else {
       // Direct image OCR for PNG/JPEG
