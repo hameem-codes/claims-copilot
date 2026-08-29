@@ -217,6 +217,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ error: "Document processing failed" }, { status: 500 });
+    const isDev = process.env.NODE_ENV !== "production";
+    return NextResponse.json(
+      { 
+        error: "Document processing failed", 
+        details: isDev ? err.message : undefined 
+      }, 
+      { status: 500 }
+    );
   }
 }
