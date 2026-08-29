@@ -117,6 +117,7 @@ async function main() {
     const chatData = await chatRes.json();
     report.push(`Q: ${q}`);
     report.push(`A: ${chatData.content}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     report.push(`Sources: ${chatData.sources?.map((s: any) => s.documentType).join(", ")}`);
   };
 
