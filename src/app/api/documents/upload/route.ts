@@ -117,7 +117,8 @@ export async function POST(req: NextRequest) {
     let extractedText = "";
 
     if (file.type === "application/pdf") {
-      const pdfParse = (await import("pdf-parse")).default;
+      const pdfParseModule = (await import("pdf-parse")) as any;
+      const pdfParse = pdfParseModule.default || pdfParseModule;
       const pdfData = await pdfParse(Buffer.from(fileBuffer));
       extractedText = pdfData.text;
     } else {
