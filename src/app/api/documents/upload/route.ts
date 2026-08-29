@@ -97,6 +97,8 @@ export async function POST(req: NextRequest) {
       .insert({
         storage_path: storagePath,
         original_filename: originalFilename,
+        file_size: file.size,
+        file_type: file.type,
         user_id: userId,
         claim_id: claimId || null,
         policy_id: policyId || null,
@@ -115,10 +117,9 @@ export async function POST(req: NextRequest) {
     let extractedText = "";
 
     if (file.type === "application/pdf") {
-      const { extractText, getDocumentProxy } = await import("unpdf");
-      const pdf = await getDocumentProxy(new Uint8Array(fileBuffer));
-      const { text } = await extractText(pdf, { mergePages: true });
-      extractedText = Array.isArray(text) ? text.join("\n") : text;
+      const pdfParse = (await import("pdf-parse")).default;
+      const pdfData = await pdfParse(Buffer.from(fileBuffer));
+      extractedText = pdfData.text;
     } else {
       // Direct image OCR for PNG/JPEG
       const { data: { text } } = await Tesseract.recognize(Buffer.from(fileBuffer), "eng");

@@ -89,7 +89,7 @@ export function DocumentsView() {
         }
       }
 
-      const res = await fetch("/api/documents", {
+      const res = await fetch("/api/documents/upload", {
         method: "POST",
         body: formData,
       });
