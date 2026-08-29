@@ -117,12 +117,9 @@ export async function POST(req: NextRequest) {
     let extractedText = "";
 
     if (file.type === "application/pdf") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfParseModule = (await import("pdf-parse")) as any;
-      const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse;
-      const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
-      const pdfData = await parser.getText();
-      extractedText = pdfData.text;
+      const { extractText } = await import("unpdf");
+      const { text } = await extractText(new Uint8Array(fileBuffer));
+      extractedText = Array.isArray(text) ? text.join("\n") : text;
     } else {
       // Direct image OCR for PNG/JPEG
       const { data: { text } } = await Tesseract.recognize(Buffer.from(fileBuffer), "eng");

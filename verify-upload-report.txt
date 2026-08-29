@@ -1,0 +1,20 @@
+=== VERIFICATION REPORT ===
+Created Analysis Session: a8179e55-d7cf-4b7a-a3a8-dd5c5ab06af5
+Policy Upload Result: 200 {"documentId":"b945318c-ee9e-4290-9e0b-04d41b560b0f","chunksCreated":1,"ocrStatus":"complete"}
+Claim Upload Result: 200 {"documentId":"0a628924-42cd-42e2-91b5-22261356befa","chunksCreated":1,"ocrStatus":"complete"}
+Documents DB Rows: [{"id":"b945318c-ee9e-4290-9e0b-04d41b560b0f","size":911,"type":"application/pdf","doc_type":"policy"},{"id":"0a628924-42cd-42e2-91b5-22261356befa","size":898,"type":"application/pdf","doc_type":"claim"}]
+Chunks Created: 2
+Session Association: Policy=true, Claim=true
+Q: What is the deductible?
+A: The deductible is $500.
+Sources: policy, claim
+Q: What is the claim amount?
+A: The claim amount is $1,500.
+Sources: claim, policy
+Q: What is the claimant's phone number?
+A: The documents do not provide enough information to answer this question.
+Sources: claim, policy
+
+--- Regression Tests ---
+Extraction: 200
+Compare: 200
