@@ -5,10 +5,8 @@ import { Sidebar } from "@/components/sidebar/Sidebar";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { DocumentsView } from "@/components/documents/DocumentsView";
 import { DashboardView } from "@/components/dashboard/DashboardView";
-import { ClaimsPoliciesView } from "@/components/claims/ClaimsPoliciesView";
-import { CompareView } from "@/components/compare/CompareView";
+import { AnalysisView } from "@/components/analysis/AnalysisView";
 import { TimelineView } from "@/components/timeline/TimelineView";
-import { SavedAnalysesView } from "@/components/saved/SavedAnalysesView";
 import { SettingsView } from "@/components/settings/SettingsView";
 
 export default function Home() {
@@ -17,16 +15,17 @@ export default function Home() {
   const renderMainContent = () => {
     switch (view) {
       case "dashboard":       return <DashboardView />;
-      case "claims-policies": return <ClaimsPoliciesView />;
-      case "claims":          return <ClaimsPoliciesView />;
-      case "policies":        return <ClaimsPoliciesView />;
       case "documents":       return <DocumentsView />;
       case "copilot":         return <ChatWindow />;
-      case "compare":         return <CompareView />;
+      case "analysis":        return <AnalysisView />;
       case "timeline":        return <TimelineView />;
-      case "saved":           return <SavedAnalysesView />;
       case "settings":        return <SettingsView />;
       // legacy fallbacks
+      case "compare":
+      case "saved":           return <AnalysisView />;
+      case "claims-policies":
+      case "claims":
+      case "policies":
       case "ai-insights":     return <DashboardView />;
       case "support":         return <SettingsView />;
       default:                return <ChatWindow />;

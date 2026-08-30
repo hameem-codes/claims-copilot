@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useApp } from "@/context/AppContext";
-import { claims, customers } from "@/data/mock-data";
 
 interface DocumentInfo {
   id: string;
@@ -11,6 +10,7 @@ interface DocumentInfo {
   type: string;
   size: number;
   uploadDate: string;
+  documentType?: "claim" | "policy";
   claimId?: string | null;
   projectId?: string | null;
   customerId?: string | null;
@@ -18,29 +18,16 @@ interface DocumentInfo {
 }
 
 export function DocumentsView() {
-  const { currentCustomer, setView } = useApp();
+  const { setView } = useApp();
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   
-  // Association selection state: format is "type:id" (e.g. "claim:CLM-20481")
-  const [associationValue, setAssociationValue] = useState<string>("");
+  // Document type selector state: ONLY "claim" or "policy"
+  const [documentType, setDocumentType] = useState<"claim" | "policy">("claim");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Set default association if customer has an active claim
-  useEffect(() => {
-    if (currentCustomer) {
-      const customerClaims = claims.filter(c => c.customerId === currentCustomer.id);
-      if (customerClaims.length > 0) {
-        const timer = setTimeout(() => {
-          setAssociationValue(`claim:${customerClaims[0].id}`);
-        }, 0);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [currentCustomer]);
 
   const fetchDocuments = async () => {
     try {
@@ -79,15 +66,7 @@ export function DocumentsView() {
       setError(null);
       const formData = new FormData();
       formData.append("file", file);
-
-      if (associationValue) {
-        const [type, id] = associationValue.split(":");
-        if (type === "claim") {
-          formData.append("claimId", id);
-        } else if (type === "project") {
-          formData.append("projectId", id);
-        }
-      }
+      formData.append("documentType", documentType);
 
       const res = await fetch("/api/documents/upload", {
         method: "POST",
@@ -197,29 +176,15 @@ export function DocumentsView() {
         <div className="card p-5 mb-6 bg-card flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full md:w-auto">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider font-mono">
-              ASSOCIATE WITH:
+              DOCUMENT TYPE:
             </span>
             <select
-              value={associationValue}
-              onChange={(e) => setAssociationValue(e.target.value)}
+              value={documentType}
+              onChange={(e) => setDocumentType(e.target.value as "claim" | "policy")}
               className="px-3 py-1.5 text-xs font-body bg-input border-2 border-foreground rounded-[var(--radius-sm)] focus:outline-none focus:ring-2 focus:ring-accent"
             >
-              <option value="">No Association (Global)</option>
-              <optgroup label="Claims">
-                {claims.map((claim) => {
-                  const customer = customers.find(c => c.id === claim.customerId);
-                  return (
-                    <option key={claim.id} value={`claim:${claim.id}`}>
-                      Claim: {claim.id} — {claim.type} {customer ? `(${customer.name})` : ""}
-                    </option>
-                  );
-                })}
-              </optgroup>
-              <optgroup label="Projects">
-                <option value="project:PRJ-001" disabled>
-                  Project: PRJ-001 — Example Project (Coming Soon)
-                </option>
-              </optgroup>
+              <option value="claim">Claim</option>
+              <option value="policy">Policy</option>
             </select>
           </div>
 
@@ -262,7 +227,7 @@ export function DocumentsView() {
             <div className="text-4xl mb-3">📂</div>
             <p className="font-heading font-700 text-lg mb-1">No documents found</p>
             <p className="text-sm text-muted-foreground mb-4">
-              Upload a document to get started. You can link documents to specific claims or projects.
+              Upload a claim or policy document to get started.
             </p>
             <button onClick={handleUploadClick} className="btn btn-sm">
               Upload First Document
@@ -275,10 +240,10 @@ export function DocumentsView() {
                 <thead>
                   <tr className="bg-muted/70 border-b-2 border-foreground font-mono text-[0.65rem] text-muted-foreground uppercase tracking-wider">
                     <th className="px-4 py-3 font-semibold">Name</th>
-                    <th className="px-4 py-3 font-semibold">Type</th>
+                    <th className="px-4 py-3 font-semibold">File Format</th>
                     <th className="px-4 py-3 font-semibold">Size</th>
                     <th className="px-4 py-3 font-semibold">Uploaded</th>
-                    <th className="px-4 py-3 font-semibold">Association</th>
+                    <th className="px-4 py-3 font-semibold">Document Type</th>
                     <th className="px-4 py-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
@@ -287,10 +252,7 @@ export function DocumentsView() {
                     if (a.isPinned === b.isPinned) return 0;
                     return a.isPinned ? -1 : 1;
                   }).map((doc) => {
-                    const claim = doc.claimId ? claims.find((c) => c.id === doc.claimId) : null;
-                    const legacyCustomer = doc.customerId ? customers.find((c) => c.id === doc.customerId) : null;
-                    const customer = claim ? customers.find((c) => c.id === claim.customerId) : legacyCustomer;
-
+                    const isPolicy = doc.documentType === "policy" || doc.projectId;
                     return (
                       <tr key={doc.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3.5 font-medium min-w-[150px]">
@@ -313,21 +275,9 @@ export function DocumentsView() {
                           {formatDate(doc.uploadDate)}
                         </td>
                         <td className="px-4 py-3.5">
-                          {doc.claimId ? (
-                            <span className="pill pill-muted !text-[0.65rem] truncate max-w-[150px] inline-block" title={`Claim ${doc.claimId}`}>
-                              📂 Claim: {doc.claimId} {customer ? `(${customer.name})` : ""}
-                            </span>
-                          ) : doc.projectId ? (
-                            <span className="pill pill-muted !text-[0.65rem] truncate max-w-[150px] inline-block" title={`Project ${doc.projectId}`}>
-                              📁 Project: {doc.projectId}
-                            </span>
-                          ) : customer ? (
-                            <span className="pill pill-muted !text-[0.65rem] truncate max-w-[150px] inline-block">
-                              👤 Customer: {customer.name}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-[0.75rem] italic font-mono">Global</span>
-                          )}
+                          <span className={`pill ${isPolicy ? "pill-accent" : "pill-muted"} !text-[0.65rem] capitalize`}>
+                            {isPolicy ? "Policy" : "Claim"}
+                          </span>
                         </td>
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex justify-end gap-2">

@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { claims } from "@/data/mock-data";
 import { randomUUID } from "crypto";
 
 export interface DocumentInfo {
@@ -11,6 +10,7 @@ export interface DocumentInfo {
   size: number;
   uploadDate: string;
   uploadedAt: string;
+  documentType?: "claim" | "policy";
   customerId?: string | null;
   claimId?: string | null;
   projectId?: string | null;
@@ -37,30 +37,30 @@ export async function listDocuments(customerId?: string | null): Promise<Documen
     if (admin) {
       let query = admin.from("documents").select("*").order("created_at", { ascending: false });
       if (customerId) {
-        const customerClaimIds = claims
-          .filter((c) => c.customerId === customerId)
-          .map((c) => c.id);
-        
-        query = query.or(
-          `user_id.eq.${customerId},claim_id.in.(${customerClaimIds.length > 0 ? customerClaimIds.join(",") : "none"})`
-        );
+        query = query.eq("user_id", customerId);
       }
       const { data, error } = await query;
       if (!error && data) {
-        return data.map((d: Record<string, unknown>) => ({
-          id: String(d.id),
-          documentId: String(d.id),
-          name: String(d.original_filename || d.name || "Untitled"),
-          type: String(d.file_type || (String(d.original_filename || "").endsWith(".pdf") ? "application/pdf" : "image/jpeg")),
-          size: typeof d.size === "number" ? d.size : 0,
-          uploadDate: String(d.created_at || new Date().toISOString()),
-          uploadedAt: String(d.created_at || new Date().toISOString()),
-          claimId: (d.claim_id as string) || null,
-          projectId: (d.policy_id as string) || (d.project_id as string) || null,
-          customerId: (d.user_id as string) || null,
-          filePath: (d.storage_path as string) || "",
-          isPinned: Boolean(d.is_pinned),
-        }));
+        return data.map((d: Record<string, unknown>) => {
+          const docType: "claim" | "policy" = 
+            (d.document_type === "policy" || d.policy_id) ? "policy" : "claim";
+
+          return {
+            id: String(d.id),
+            documentId: String(d.id),
+            name: String(d.original_filename || d.name || "Untitled"),
+            type: String(d.file_type || (String(d.original_filename || "").endsWith(".pdf") ? "application/pdf" : "image/jpeg")),
+            size: typeof d.size === "number" ? d.size : 0,
+            uploadDate: String(d.created_at || new Date().toISOString()),
+            uploadedAt: String(d.created_at || new Date().toISOString()),
+            documentType: docType,
+            claimId: (d.claim_id as string) || null,
+            projectId: (d.policy_id as string) || (d.project_id as string) || null,
+            customerId: (d.user_id as string) || null,
+            filePath: (d.storage_path as string) || "",
+            isPinned: Boolean(d.is_pinned),
+          };
+        });
       }
     }
   } catch (err) {
@@ -69,15 +69,7 @@ export async function listDocuments(customerId?: string | null): Promise<Documen
 
   // Fallback
   if (customerId) {
-    const customerClaimIds = claims
-      .filter((c) => c.customerId === customerId)
-      .map((c) => c.id);
-
-    return inMemoryDocs.filter(
-      (d) =>
-        d.customerId === customerId ||
-        (d.claimId && customerClaimIds.includes(d.claimId))
-    );
+    return inMemoryDocs.filter((d) => d.customerId === customerId);
   }
   return inMemoryDocs;
 }
@@ -88,6 +80,9 @@ export async function getDocument(id: string): Promise<DocumentInfo | null> {
     if (admin) {
       const { data, error } = await admin.from("documents").select("*").eq("id", id).single();
       if (!error && data) {
+        const docType: "claim" | "policy" = 
+          (data.document_type === "policy" || data.policy_id) ? "policy" : "claim";
+
         return {
           id: String(data.id),
           documentId: String(data.id),
@@ -96,6 +91,7 @@ export async function getDocument(id: string): Promise<DocumentInfo | null> {
           size: typeof data.size === "number" ? data.size : 0,
           uploadDate: String(data.created_at || new Date().toISOString()),
           uploadedAt: String(data.created_at || new Date().toISOString()),
+          documentType: docType,
           claimId: (data.claim_id as string) || null,
           projectId: (data.policy_id as string) || (data.project_id as string) || null,
           customerId: (data.user_id as string) || null,
@@ -135,11 +131,12 @@ export async function saveDocument(
   name: string,
   type: string,
   size: number,
-  association?: { claimId?: string | null; projectId?: string | null }
+  options?: { documentType?: "claim" | "policy"; claimId?: string | null; projectId?: string | null }
 ): Promise<DocumentInfo> {
   const id = randomUUID();
   const isoString = new Date().toISOString();
   const storagePath = `uploads/${id}-${name}`;
+  const docType = options?.documentType || (options?.projectId ? "policy" : "claim");
 
   try {
     const serverSupabase = await createClient();
@@ -165,8 +162,8 @@ export async function saveDocument(
             size: size,
             file_type: type,
             user_id: userId,
-            claim_id: association?.claimId || null,
-            policy_id: association?.projectId || null,
+            claim_id: options?.claimId || null,
+            policy_id: options?.projectId || null,
             ocr_status: "complete",
           })
           .select()
@@ -181,8 +178,9 @@ export async function saveDocument(
             size,
             uploadDate: isoString,
             uploadedAt: isoString,
-            claimId: association?.claimId || null,
-            projectId: association?.projectId || null,
+            documentType: docType,
+            claimId: options?.claimId || null,
+            projectId: options?.projectId || null,
             customerId: userId,
             filePath: storagePath,
             isPinned: false,
@@ -202,8 +200,9 @@ export async function saveDocument(
     size,
     uploadDate: isoString,
     uploadedAt: isoString,
-    claimId: association?.claimId || null,
-    projectId: association?.projectId || null,
+    documentType: docType,
+    claimId: options?.claimId || null,
+    projectId: options?.projectId || null,
     customerId: null,
     filePath: storagePath,
     isPinned: false,

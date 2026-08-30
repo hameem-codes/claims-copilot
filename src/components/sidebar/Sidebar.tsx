@@ -7,14 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 const navItems: { id: AppView; label: string; icon: string }[] = [
-  { id: "dashboard",      label: "Dashboard",        icon: "◈" },
-  { id: "claims-policies",label: "Claims & Policies", icon: "▦" },
-  { id: "documents",      label: "Documents",         icon: "▧" },
-  { id: "copilot",        label: "AI Copilot",        icon: "◆" },
-  { id: "compare",        label: "Compare & Analyze", icon: "⊞" },
-  { id: "timeline",       label: "Claim Timeline",    icon: "◎" },
-  { id: "saved",          label: "Saved Analyses",    icon: "◉" },
-  { id: "settings",       label: "Settings",          icon: "◧" },
+  { id: "dashboard", label: "Dashboard", icon: "◈" },
+  { id: "documents", label: "Documents", icon: "▧" },
+  { id: "copilot", label: "AI Copilot", icon: "◆" },
+  { id: "analysis", label: "Analysis", icon: "⊞" },
+  { id: "timeline", label: "Claim Timeline", icon: "◎" },
+  { id: "settings", label: "Settings", icon: "◧" },
 ];
 
 

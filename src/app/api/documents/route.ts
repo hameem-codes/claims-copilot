@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    const documentType = (formData.get("documentType") as "claim" | "policy") || "claim";
     const claimId = formData.get("claimId") as string | null;
     const projectId = formData.get("projectId") as string | null;
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       file.name,
       file.type || "application/octet-stream",
       file.size,
-      { claimId, projectId }
+      { documentType, claimId, projectId }
     );
 
     return NextResponse.json(savedDoc, { status: 201 });
