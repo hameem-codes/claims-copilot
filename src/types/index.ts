@@ -142,20 +142,23 @@ export interface MemoryEntry {
 // --- App State ---
 export type AppView =
   | "dashboard"
-  | "claims-policies"
   | "documents"
   | "copilot"
-  | "compare"
+  | "analysis"
   | "timeline"
-  | "saved"
   | "settings"
-  // legacy aliases kept for backward-compat with existing code
+  // legacy aliases kept for backward-compat with existing state
+  | "compare"
+  | "saved"
+  | "claims-policies"
   | "claims"
   | "policies"
   | "ai-insights"
   | "support";
 
 export type ClaimViewMode = "list" | "detail";
+
+export type DocumentType = "claim" | "policy";
 
 export interface AIInsight {
   id: string;
@@ -166,13 +169,12 @@ export interface AIInsight {
 
 // --- Saved Analysis ---
 export type AnalysisType =
-  | "policy-analysis"
-  | "claim-analysis"
   | "coverage-assessment"
-  | "policy-vs-claim"
-  | "document-comparison"
+  | "claim-analysis"
+  | "policy-analysis"
   | "discrepancy-report"
-  | "ai-summary";
+  | "ai-summary"
+  | "custom";
 
 export interface SavedAnalysis {
   id: string;

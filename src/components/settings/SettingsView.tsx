@@ -15,7 +15,7 @@ const tabs: { id: SettingsTab; label: string; icon: string }[] = [
 ];
 
 export function SettingsView() {
-  const { currentCustomer, savedAnalyses, deleteAnalysis } = useApp();
+  const { currentCustomer, savedAnalyses, deleteAnalysis, setView } = useApp();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
   const [notifyClaims, setNotifyClaims] = useState(true);
@@ -46,6 +46,13 @@ export function SettingsView() {
       setDeleteConfirm("analyses");
     }
   };
+
+  const accountRows = [
+    { label: "Account Name", value: currentCustomer?.name || "Authenticated User" },
+    { label: "Email Address", value: currentCustomer?.email || "—" },
+    { label: "User ID", value: currentCustomer?.id || "—" },
+    { label: "Member Since", value: currentCustomer?.customerSince || "—" },
+  ];
 
   return (
     <div className="h-full overflow-y-auto bg-[var(--bg)] relative">
@@ -92,21 +99,15 @@ export function SettingsView() {
                     className="w-12 h-12 shrink-0 rounded-full border-2 border-foreground flex items-center justify-center text-sm font-bold text-white shadow-[2px_2px_0_var(--foreground)]"
                     style={{ background: currentCustomer?.avatarColor || "#8B5CF6" }}
                   >
-                    {currentCustomer?.name?.split(" ").map(n => n[0]).join("")}
+                    {currentCustomer?.name?.slice(0, 2).toUpperCase() || "U"}
                   </div>
-                  <div>
-                    <p className="font-semibold">{currentCustomer?.name}</p>
-                    <p className="text-xs font-mono text-muted-foreground">{currentCustomer?.id}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{currentCustomer?.name || "Authenticated User"}</p>
+                    <p className="text-xs font-mono text-muted-foreground truncate">{currentCustomer?.id || "—"}</p>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {[
-                    { label: "Name",              value: currentCustomer?.name || "" },
-                    { label: "Email",             value: currentCustomer?.email || "" },
-                    { label: "Phone",             value: currentCustomer?.phone || "" },
-                    { label: "Preferred Contact", value: currentCustomer?.preferredContact?.toUpperCase() || "" },
-                    { label: "Customer Since",    value: currentCustomer?.customerSince || "" },
-                  ].map(row => (
+                  {accountRows.map(row => (
                     <div key={row.label} className="flex items-center justify-between gap-4 px-3 py-2.5 bg-muted/40 rounded-[var(--radius-sm)]">
                       <span className="text-sm text-muted-foreground">{row.label}</span>
                       <span className="text-sm font-medium text-right break-all">{row.value}</span>
@@ -114,7 +115,7 @@ export function SettingsView() {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  To update your profile information, please contact your insurance representative.
+                  Session credentials derived directly from your active Supabase authentication session.
                 </p>
               </div>
             )}
@@ -195,7 +196,7 @@ export function SettingsView() {
                   </p>
                   <button
                     className="btn btn-sm mt-2"
-                    onClick={() => {/* setView("documents") is in parent but we can import useApp */}}
+                    onClick={() => setView("documents")}
                   >
                     Manage Documents →
                   </button>
@@ -217,20 +218,9 @@ export function SettingsView() {
                 <div className="p-3 bg-muted/40 rounded-[var(--radius-sm)] border-2 border-border flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium">Session Authentication</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Secured via Better Auth server-side sessions</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Secured via Supabase Auth server-side sessions</p>
                   </div>
                   <span className="pill pill-accent shrink-0 !text-[0.55rem]">Active</span>
-                </div>
-
-                <div className="p-3 bg-muted/40 rounded-[var(--radius-sm)] border-2 border-border">
-                  <p className="text-sm font-medium">Change Password</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-3">Update your account password</p>
-                  <div className="space-y-2">
-                    <input type="password" placeholder="Current password" className="w-full px-3 py-2 text-sm bg-input border-2 border-foreground rounded-[var(--radius-sm)] focus:outline-none focus:ring-2 focus:ring-accent" />
-                    <input type="password" placeholder="New password" className="w-full px-3 py-2 text-sm bg-input border-2 border-foreground rounded-[var(--radius-sm)] focus:outline-none focus:ring-2 focus:ring-accent" />
-                    <input type="password" placeholder="Confirm new password" className="w-full px-3 py-2 text-sm bg-input border-2 border-foreground rounded-[var(--radius-sm)] focus:outline-none focus:ring-2 focus:ring-accent" />
-                    <button className="btn btn-primary w-full">Update Password</button>
-                  </div>
                 </div>
 
                 <div className="border-t-2 border-border pt-4">
